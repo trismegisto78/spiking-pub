@@ -1,0 +1,27 @@
+# Milestone 1 baseline: 40x40 grid, one food type, direct genome, no speciation.
+experiment: food_only_baseline
+seed: 42
+world:
+  width: 40
+  height: 40
+  steps_per_episode: 1000
+stimuli:
+  - type: food
+    count: 60
+    regrow_rate: 0.01
+network:
+  encoder: rate
+  hidden_max: 30
+  dt_ms: 1.0
+  neuron: { tau_m: 20.0, v_thresh: 1.0, v_reset: 0.0, refractory_ms: 2.0 }
+genetics:
+  population: 200
+  generations: 300
+  tournament_size: 3
+  elitism: 5
+  mutation: { weight: 0.1, threshold: 0.05, add_synapse: 0.02, remove_synapse: 0.01 }
+fitness:
+  energy: 1.0
+  firing_penalty: { target_rate_hz: 20, weight: 0.5 }
+  silence_penalty: { weight: 0.5 }
+  exploration: { weight: 0.0 }
