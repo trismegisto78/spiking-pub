@@ -28,6 +28,8 @@ class SNNController:
         bias_input: bool,
         motor_threshold_hz: float,
         rng: np.random.Generator,
+        batch_offset: int = 0,
+        batch_total: int | None = None,
     ) -> None:
         if net.n_outputs != N_MOTOR_OUTPUTS:
             raise ValueError(f"the controller needs {N_MOTOR_OUTPUTS} output neurons")
@@ -39,47 +41,66 @@ class SNNController:
         self.bias_input = bias_input
         self.motor_threshold_hz = motor_threshold_hz
         self.rng = rng
+        # This batch may be a slice [offset, offset + B) of a larger population split
+        # across processes; encoders draw randomness for the whole population and slice
+        # it, so results do not depend on how the population is split.
+        self.batch_offset = batch_offset
+        self.batch_total = batch_total or net.batch
         b, n = net.batch, net.n_neurons
         self._i_ext = np.zeros((b, n))
-        self._forced = np.zeros((b, n), dtype=bool)
+        self._forced = np.zeros((steps_per_tick, b, n), dtype=bool)
+        self._tick_spikes = np.zeros((b, n), dtype=np.int64)
         noninput = net.active.copy()
         noninput[:, : net.n_inputs] = False
         self._noninput = noninput
         self.n_noninput = noninput.sum(axis=1)
         self.noninput_spikes = np.zeros(b, dtype=np.int64)
+        self.active_steps = np.zeros(b, dtype=np.int64)  # SNN steps while the agent lived
         self.output_spikes = np.zeros((b, net.n_outputs), dtype=np.int64)
         self.snn_steps = 0
 
     def reset(self) -> None:
         self.network.reset()
         self.noninput_spikes.fill(0)
+        self.active_steps.fill(0)
         self.output_spikes.fill(0)
         self.snn_steps = 0
 
-    def act(self, observations: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def act(
+        self, observations: np.ndarray, active: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """``active`` marks living agents: activity statistics only count while alive."""
         b = self.net.batch
+        if active is None:
+            active = np.ones(b, dtype=bool)
         x = observations
         if self.bias_input:
             x = np.concatenate([x, np.ones((b, 1))], axis=1)
         if x.shape != (b, self.net.n_inputs):
             raise ValueError(f"expected {self.net.n_inputs} input channels, got {x.shape[1]}")
-        enc: EncodedInput = self.encoder.encode(x, self.steps_per_tick, self.rng)
+        enc: EncodedInput = self.encoder.encode(
+            x, self.steps_per_tick, self.rng, self.batch_offset, self.batch_total
+        )
         n_in = self.net.n_inputs
         i_ext = None
         if enc.current is not None:
             self._i_ext[:, :n_in] = enc.current
             i_ext = self._i_ext
         out = self.net.output_slice
-        counts = np.zeros((b, self.net.n_outputs), dtype=np.int64)
+        forced_all = None
+        if enc.spikes is not None:
+            forced_all = self._forced  # input columns are fully overwritten every tick
+            forced_all[:, :, :n_in] = enc.spikes
+        tick_spikes = self._tick_spikes
+        tick_spikes.fill(0)
         for t in range(self.steps_per_tick):
-            forced = None
-            if enc.spikes is not None:
-                self._forced[:, :n_in] = enc.spikes[t]
-                forced = self._forced
-            spikes = self.network.step(i_ext=i_ext, forced=forced)
-            counts += spikes[:, out]
-            self.noninput_spikes += (spikes & self._noninput).sum(axis=1)
-        self.output_spikes += counts
+            forced = None if forced_all is None else forced_all[t]
+            tick_spikes += self.network.step(i_ext=i_ext, forced=forced)
+        counts = tick_spikes[:, out]
+        noninput = np.where(self._noninput, tick_spikes, 0).sum(axis=1)
+        self.noninput_spikes += noninput * active
+        self.active_steps += self.steps_per_tick * active
+        self.output_spikes += counts * active[:, None]
         self.snn_steps += self.steps_per_tick
         window_s = self.steps_per_tick * self.dt_ms / 1000.0
         rates = counts / window_s
@@ -90,8 +111,6 @@ class SNNController:
         return np.where(diff > thr, 1, np.where(diff < -thr, -1, 0)).astype(np.int64)
 
     def mean_firing_rate_hz(self) -> np.ndarray:
-        """Mean firing rate of the active non-input neurons, per network."""
-        duration_s = self.snn_steps * self.dt_ms / 1000.0
-        if duration_s == 0:
-            return np.zeros(self.net.batch)
+        """Mean firing rate of the non-input neurons while the agent was alive."""
+        duration_s = np.maximum(self.active_steps, 1) * self.dt_ms / 1000.0
         return self.noninput_spikes / np.maximum(self.n_noninput, 1) / duration_s

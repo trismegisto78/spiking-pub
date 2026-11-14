@@ -18,7 +18,7 @@ class Scripted:
     def reset(self):
         pass
 
-    def act(self, obs):
+    def act(self, obs, active):
         n = obs.shape[0]
         return np.full(n, self.forward), np.full(n, self.turn)
 

@@ -3,6 +3,9 @@
 python -m spiking_evo run spiking_evo/experiments/food_only_baseline.yaml
 python -m spiking_evo run CONFIG --seed 7 --generations 50 --out runs --resume
 python -m spiking_evo evaluate runs/<exp>/<seed>/snapshots/gen_0099.json --config CONFIG
+python -m spiking_evo sweep CONFIG [CONFIG ...] --seeds 1-16 --out /workspace/runs
+
+The output root defaults to $SPIKING_EVO_OUT, then to metrics.out_dir of the config.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import sys
 
 import numpy as np
@@ -18,6 +22,7 @@ from .config import load_config
 from .genetics.genome import Genome
 from .genetics.population import Evolution
 from .metrics.logger import run_dir
+from .sweep import available_cpus, parse_seeds, run_sweep
 
 
 def _load(args) -> object:
@@ -26,13 +31,20 @@ def _load(args) -> object:
         cfg = dataclasses.replace(cfg, seed=args.seed)
     if getattr(args, "generations", None) is not None:
         cfg.genetics.generations = args.generations
+    if getattr(args, "checkpoint_every", None) is not None:
+        cfg.metrics.checkpoint_every = args.checkpoint_every
     return cfg
+
+
+def _out(args) -> str | None:
+    return args.out or os.environ.get("SPIKING_EVO_OUT") or None
 
 
 def cmd_run(args) -> int:
     cfg = _load(args)
-    evo = Evolution(cfg)
-    out = run_dir(cfg, args.out)
+    evo = Evolution(cfg, workers=args.workers)
+    out_root = _out(args)
+    out = run_dir(cfg, out_root)
     print(f"[spiking-evo] {cfg.experiment} seed={cfg.seed} -> {out}")
     print(f"[spiking-evo] inputs: {', '.join(evo.input_names)}")
 
@@ -46,7 +58,7 @@ def cmd_run(args) -> int:
                 flush=True,
             )
 
-    evo.run(out_root=args.out, resume=args.resume, progress=progress)
+    evo.run(out_root=out_root, resume=args.resume, progress=progress)
     return 0
 
 
@@ -69,6 +81,19 @@ def cmd_evaluate(args) -> int:
     return 0
 
 
+def cmd_sweep(args) -> int:
+    rows = run_sweep(
+        args.configs,
+        parse_seeds(args.seeds),
+        out=_out(args) or "runs",
+        jobs=args.jobs,
+        workers=args.workers,
+        generations=args.generations,
+        checkpoint_every=args.checkpoint_every,
+    )
+    return 0 if all(not r["status"].startswith("failed") for r in rows) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="spiking-evo")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -80,6 +105,10 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--out", help="root output directory (default: metrics.out_dir)")
     r.add_argument("--resume", action="store_true", help="continue from checkpoint.json")
     r.add_argument("--quiet", action="store_true")
+    r.add_argument("--checkpoint-every", type=int, help="override metrics.checkpoint_every")
+    r.add_argument(
+        "--workers", type=int, default=1, help="processes evaluating the population (default 1)"
+    )
     r.set_defaults(func=cmd_run)
 
     e = sub.add_parser("evaluate", help="re-evaluate a genome snapshot")
@@ -88,6 +117,19 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--seed", type=int)
     e.add_argument("--episodes", type=int, default=10)
     e.set_defaults(func=cmd_evaluate)
+
+    s = sub.add_parser("sweep", help="run several configs x seeds in parallel, resumable")
+    s.add_argument("configs", nargs="+")
+    s.add_argument("--seeds", required=True, help="e.g. 1-16 or 1,2,7")
+    s.add_argument("--out", help="root output directory (default: $SPIKING_EVO_OUT or runs)")
+    s.add_argument("--jobs", type=int, help="parallel runs (default: CPUs / workers)")
+    s.add_argument("--workers", type=int, default=1, help="processes per run (default 1)")
+    s.add_argument("--generations", type=int)
+    s.add_argument("--checkpoint-every", type=int, default=1)
+    s.set_defaults(func=cmd_sweep)
+
+    c = sub.add_parser("cpus", help="print the number of CPUs available to this container")
+    c.set_defaults(func=lambda a: print(available_cpus()) or 0)
 
     args = p.parse_args(argv)
     return args.func(args)

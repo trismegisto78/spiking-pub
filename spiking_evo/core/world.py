@@ -12,11 +12,16 @@ and a list of objects implementing ``stimuli.base.Stimulus``. Order of one world
 
 In "isolated" mode every agent has its own arena (a private copy of the world, so no
 competition); in "shared" mode all agents live in arena 0.
+
+Parallel evaluation: in isolated mode a population of ``batch_total`` agents can be split
+into chunks simulated by different processes; this world then holds the agents
+[batch_offset, batch_offset + n_agents). Per-agent / per-arena random draws must go through
+``per_arena`` so that every chunk sees exactly the numbers it would see unsplit.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
@@ -34,8 +39,10 @@ if TYPE_CHECKING:
 class Controller(Protocol):
     def reset(self) -> None: ...
 
-    def act(self, observations: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """(A, C) observations -> (forward in {-1,0,1}, turn in {-1,0,1}), each (A,)."""
+    def act(self, observations: np.ndarray, active: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """(A, C) observations and (A,) alive mask -> (forward, turn) in {-1,0,1}, each (A,).
+
+        Actions of dead agents are ignored by the world."""
         ...
 
 
@@ -56,7 +63,13 @@ class World:
         stimuli: Sequence[Stimulus],
         n_agents: int,
         clock: Clock | None = None,
+        batch_offset: int = 0,
+        batch_total: int | None = None,
     ) -> None:
+        self.batch_offset = batch_offset
+        self.batch_total = batch_total or n_agents
+        if self.batch_total != n_agents and world_cfg.arenas != "isolated":
+            raise ValueError("only isolated arenas can be split across processes")
         self.cfg = world_cfg
         self.agent_cfg = agent_cfg
         self.width = world_cfg.width
@@ -69,6 +82,17 @@ class World:
         self.agents = Agents.create(n_agents, arena, agent_cfg.initial_energy)
         self.clock = clock or Clock()
         self.visited = np.zeros((n_agents, self.height, self.width), dtype=bool)
+
+    def per_arena(self, draw: Callable[[tuple[int, ...]], np.ndarray], *tail: int) -> np.ndarray:
+        """Random draw with one row per arena, chunk-invariant.
+
+        ``draw(shape)`` is called with shape (total arenas, *tail) and the rows of the arenas
+        held by this world are returned, e.g. ``world.per_arena(rng.random, count)``.
+        """
+        if self.n_arenas == 1 and self.batch_total == self.n_agents:
+            return draw((1, *tail))
+        lo = self.batch_offset
+        return draw((self.batch_total, *tail))[lo : lo + self.n_arenas]
 
     # -- channels -------------------------------------------------------------
     @property
@@ -101,9 +125,10 @@ class World:
             a.y[:] = rng.integers(self.height)
             a.heading[:] = rng.integers(4)
         else:
-            a.x[:] = rng.integers(self.width, size=n)
-            a.y[:] = rng.integers(self.height, size=n)
-            a.heading[:] = rng.integers(4, size=n)
+            lo, total = self.batch_offset, self.batch_total
+            a.x[:] = rng.integers(self.width, size=total)[lo : lo + n]
+            a.y[:] = rng.integers(self.height, size=total)[lo : lo + n]
+            a.heading[:] = rng.integers(4, size=total)[lo : lo + n]
         a.energy[:] = self.agent_cfg.initial_energy
         a.alive[:] = True
         a.energy_gained[:] = 0.0
@@ -126,7 +151,7 @@ class World:
         for stim in self.stimuli:
             stim.step(self, t)
 
-        forward, turn = controller.act(self.sense())
+        forward, turn = controller.act(self.sense(), a.alive.copy())
         forward = np.where(a.alive, forward, 0)
         turn = np.where(a.alive, turn, 0)
 

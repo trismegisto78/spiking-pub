@@ -6,6 +6,10 @@ Here they receive the whole ``Agents`` batch (structure of arrays) and return on
 agent. A per-agent Python call would cost population x steps x stimuli calls per
 generation (~10^6 for the baseline), which dominates run time; batched calls keep the same
 semantics while letting each stimulus vectorise with NumPy.
+
+Reproducibility rule: random numbers that differ per arena must be drawn through
+``world.per_arena(rng.<method>, ...)``. The population may be split across processes, and
+this keeps every arena's random stream independent of the split.
 """
 
 from __future__ import annotations

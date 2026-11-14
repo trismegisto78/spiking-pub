@@ -6,12 +6,19 @@ Randomness is keyed by generation, so generation g is reproducible in isolation:
     evaluation episode e    world/stimuli: (seed, "eval", g, "episode", e, ...)
                             encoder:       (seed, "eval", g, "episode", e, "encoder")
     reproduction            derive_rng(seed, "reproduce", g)
+
+With ``workers > 1`` the population is split into contiguous chunks evaluated by a pool of
+processes. Chunks draw their random numbers as slices of whole-population draws (see
+``World.per_arena``), so the results are identical for any number of workers.
 """
 
 from __future__ import annotations
 
+import multiprocessing as mp
+import os
 import time
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,10 +54,14 @@ def n_input_channels(cfg: Config) -> tuple[int, list[str]]:
 
 
 class Evolution:
-    def __init__(self, cfg: Config) -> None:
+    def __init__(self, cfg: Config, workers: int = 1) -> None:
         self.cfg = cfg
         n_in, self.input_names = n_input_channels(cfg)
         self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS)
+        if workers > 1 and cfg.world.arenas != "isolated":
+            raise ValueError("parallel evaluation needs world.arenas: isolated")
+        self.workers = max(1, min(workers, cfg.genetics.population))
+        self._pool: ProcessPoolExecutor | None = None
 
     # -- population ---------------------------------------------------------------
     def initial_population(self) -> list[Genome]:
@@ -58,6 +69,21 @@ class Evolution:
         return [Genome.random(self.spec, rng) for _ in range(self.cfg.genetics.population)]
 
     def evaluate(self, genomes: list[Genome], generation: int) -> Evaluation:
+        if self.workers == 1:
+            return self.evaluate_chunk(genomes, generation, 0, len(genomes))
+        pool = self._get_pool()
+        bounds = np.linspace(0, len(genomes), self.workers + 1).astype(int)
+        futures = [
+            pool.submit(_evaluate_in_worker, genomes[lo:hi], generation, int(lo), len(genomes))
+            for lo, hi in zip(bounds[:-1], bounds[1:], strict=True)
+            if hi > lo
+        ]
+        return merge_evaluations([f.result() for f in futures])
+
+    def evaluate_chunk(
+        self, genomes: list[Genome], generation: int, offset: int, total: int
+    ) -> Evaluation:
+        """Evaluate agents [offset, offset + len(genomes)) of a population of ``total``."""
         cfg, seed = self.cfg, self.cfg.seed
         net = build_network_batch(genomes, self.spec)
         world = World(
@@ -66,6 +92,8 @@ class Evolution:
             build_stimuli(cfg.stimuli),
             n_agents=len(genomes),
             clock=Clock(cfg.network.dt_ms, cfg.network.steps_per_tick),
+            batch_offset=offset,
+            batch_total=total,
         )
         encoder = make_encoder(
             cfg.network.encoder,
@@ -84,6 +112,8 @@ class Evolution:
                 bias_input=cfg.network.bias_input,
                 motor_threshold_hz=cfg.network.motor_threshold_hz,
                 rng=derive_rng(seed, *keys, "encoder"),
+                batch_offset=offset,
+                batch_total=total,
             )
             res = world.run_episode(controller, seed, *keys)
             per_episode.append(
@@ -105,6 +135,22 @@ class Evolution:
             }
         )
         return Evaluation(fitness=total_fitness(terms), terms=terms, stats=stats)
+
+    def _get_pool(self) -> ProcessPoolExecutor:
+        if self._pool is None:
+            limit_native_threads()  # inherited by the workers
+            self._pool = ProcessPoolExecutor(
+                max_workers=self.workers,
+                mp_context=mp.get_context("spawn"),
+                initializer=_init_worker,
+                initargs=(self.cfg,),
+            )
+        return self._pool
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.shutdown()
+            self._pool = None
 
     def reproduce(
         self, genomes: list[Genome], fitness: np.ndarray, generation: int
@@ -144,24 +190,27 @@ class Evolution:
         logger.start(start)
         last = cfg.genetics.generations - 1
         evaluated = population
-        for gen in range(start, cfg.genetics.generations):
-            t0 = time.perf_counter()
-            ev = self.evaluate(population, gen)
-            best = int(np.argmax(ev.fitness))
-            row = self._generation_row(gen, population, ev, best, time.perf_counter() - t0)
-            logger.log_generation(row, self._terms_row(gen, ev))
-            every = cfg.metrics.snapshot_every
-            if gen == last or (every > 0 and gen % every == 0):
-                logger.snapshot(gen, population[best].to_dict(), float(ev.fitness[best]))
-            if progress:
-                progress(row)
-            evaluated = population
-            # Reproduce also after the last generation, so that the final checkpoint holds
-            # generation `generations` and the run can be extended with --resume.
-            population = self.reproduce(population, ev.fitness, gen)
-            every = cfg.metrics.checkpoint_every
-            if gen == last or (every > 0 and (gen + 1) % every == 0):
-                logger.checkpoint(gen + 1, [g.to_dict() for g in population])
+        try:
+            for gen in range(start, cfg.genetics.generations):
+                t0 = time.perf_counter()
+                ev = self.evaluate(population, gen)
+                best = int(np.argmax(ev.fitness))
+                row = self._generation_row(gen, population, ev, best, time.perf_counter() - t0)
+                logger.log_generation(row, self._terms_row(gen, ev))
+                every = cfg.metrics.snapshot_every
+                if gen == last or (every > 0 and gen % every == 0):
+                    logger.snapshot(gen, population[best].to_dict(), float(ev.fitness[best]))
+                if progress:
+                    progress(row)
+                evaluated = population
+                # Reproduce also after the last generation, so that the final checkpoint holds
+                # generation `generations` and the run can be extended with --resume.
+                population = self.reproduce(population, ev.fitness, gen)
+                every = cfg.metrics.checkpoint_every
+                if gen == last or (every > 0 and (gen + 1) % every == 0):
+                    logger.checkpoint(gen + 1, [g.to_dict() for g in population])
+        finally:
+            self.close()
         return evaluated
 
     @staticmethod
@@ -195,3 +244,36 @@ class Evolution:
             row[f"{t}_min"] = float(v.min())
             row[f"{t}_max"] = float(v.max())
         return row
+
+
+def merge_evaluations(parts: list[Evaluation]) -> Evaluation:
+    cat = np.concatenate
+    return Evaluation(
+        fitness=cat([p.fitness for p in parts]),
+        terms={t: cat([p.terms[t] for p in parts]) for t in parts[0].terms},
+        stats=BehaviourStats(
+            **{
+                f: cat([getattr(p.stats, f) for p in parts])
+                for f in BehaviourStats.__dataclass_fields__
+            }
+        ),
+    )
+
+
+def limit_native_threads() -> None:
+    """One process = one core: stop BLAS/OpenMP thread pools from oversubscribing CPUs."""
+    for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        os.environ.setdefault(var, "1")
+
+
+_WORKER: Evolution | None = None
+
+
+def _init_worker(cfg: Config) -> None:
+    global _WORKER
+    _WORKER = Evolution(cfg)
+
+
+def _evaluate_in_worker(genomes: list[Genome], generation: int, offset: int, total: int):
+    assert _WORKER is not None
+    return _WORKER.evaluate_chunk(genomes, generation, offset, total)

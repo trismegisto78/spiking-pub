@@ -94,7 +94,7 @@ class FoodStimulus:
         if self.shared_layout:
             cells = np.broadcast_to(rng.choice(h * w, self.count, replace=False), (n, self.count))
         else:
-            cells = np.argsort(rng.random((n, h * w)), axis=1)[:, : self.count]
+            cells = np.argsort(world.per_arena(rng.random, h * w), axis=1)[:, : self.count]
         self.item_y, self.item_x = np.divmod(np.array(cells, dtype=np.int64), w)
         self.present = np.ones((n, self.count), dtype=bool)
         self._arena_of_item = np.broadcast_to(np.arange(n)[:, None], (n, self.count))
@@ -104,10 +104,12 @@ class FoodStimulus:
     def step(self, world: World, t: int) -> None:
         if self.regrow_rate <= 0.0 or self.count == 0:
             return
-        shape = self.present.shape
-        # Fixed number of draws per step, so an arena's food does not depend on the others.
-        regrow = (self.rng.random(shape) < self.regrow_rate) & ~self.present
-        cells = self.rng.integers(world.height * world.width, size=shape)
+        # Fixed number of draws per step and arena, so an arena's food depends neither on the
+        # other arenas nor on how the population is split across processes.
+        u = world.per_arena(self.rng.random, self.count)
+        regrow = (u < self.regrow_rate) & ~self.present
+        hw = world.height * world.width
+        cells = world.per_arena(lambda shape: self.rng.integers(hw, size=shape), self.count)
         if not regrow.any():
             return
         ny, nx = np.divmod(cells[regrow], world.width)

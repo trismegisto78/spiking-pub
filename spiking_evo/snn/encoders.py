@@ -2,6 +2,10 @@
 
 Every encoder turns a (B, C) intensity array into the drive for ``n_steps`` SNN steps:
 either a (n_steps, B, C) boolean array of forced spikes, or a (B, C) constant current.
+
+``x`` may be the slice [offset, offset + B) of a population of ``total`` agents. Stochastic
+encoders draw random numbers for all ``total`` agents and keep their slice, so the spikes an
+agent receives do not depend on how the population is split across processes.
 """
 
 from __future__ import annotations
@@ -27,9 +31,18 @@ class RateEncoder:
         if not 0.0 <= self.p_max <= 1.0:
             raise ValueError("max_rate_hz * dt_ms must be <= 1000 (at most one spike per step)")
 
-    def encode(self, x: np.ndarray, n_steps: int, rng: np.random.Generator) -> EncodedInput:
+    def encode(
+        self,
+        x: np.ndarray,
+        n_steps: int,
+        rng: np.random.Generator,
+        offset: int = 0,
+        total: int | None = None,
+    ) -> EncodedInput:
         p = np.clip(x, 0.0, 1.0) * self.p_max
-        return EncodedInput(spikes=rng.random((n_steps, *x.shape)) < p)
+        b, c = x.shape
+        u = rng.random((n_steps, total or b, c))[:, offset : offset + b]
+        return EncodedInput(spikes=u < p)
 
 
 class LatencyEncoder:
@@ -41,7 +54,14 @@ class LatencyEncoder:
 
     stochastic = False
 
-    def encode(self, x: np.ndarray, n_steps: int, rng: np.random.Generator) -> EncodedInput:
+    def encode(
+        self,
+        x: np.ndarray,
+        n_steps: int,
+        rng: np.random.Generator,
+        offset: int = 0,
+        total: int | None = None,
+    ) -> EncodedInput:
         x = np.clip(x, 0.0, 1.0)
         t_spike = np.floor((1.0 - x) * (n_steps - 1) + 1e-9).astype(np.int64)
         steps = np.arange(n_steps).reshape(n_steps, *([1] * x.ndim))
@@ -56,7 +76,14 @@ class CurrentEncoder:
     def __init__(self, gain: float) -> None:
         self.gain = gain
 
-    def encode(self, x: np.ndarray, n_steps: int, rng: np.random.Generator) -> EncodedInput:
+    def encode(
+        self,
+        x: np.ndarray,
+        n_steps: int,
+        rng: np.random.Generator,
+        offset: int = 0,
+        total: int | None = None,
+    ) -> EncodedInput:
         return EncodedInput(current=np.clip(x, 0.0, 1.0) * self.gain)
 
 

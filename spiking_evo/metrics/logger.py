@@ -51,7 +51,8 @@ def git_info(path: Path) -> dict[str, Any]:
     try:
         return {"commit": run("rev-parse", "HEAD"), "dirty": bool(run("status", "--porcelain"))}
     except (OSError, subprocess.CalledProcessError):
-        return {"commit": "unknown", "dirty": None}
+        # No git checkout (e.g. inside a Docker image): commit baked in at build time.
+        return {"commit": os.environ.get("SPIKING_EVO_COMMIT", "unknown"), "dirty": None}
 
 
 def run_dir(cfg: Config, out_root: str | Path | None = None) -> Path:
@@ -93,7 +94,11 @@ class RunLogger:
             rows = []
             if first_generation > 0 and path.exists():
                 with path.open(newline="") as f:
-                    rows = [r for r in csv.DictReader(f) if int(r["generation"]) < first_generation]
+                    rows = [
+                        r
+                        for r in csv.DictReader(f)
+                        if _complete(r, cols) and int(r["generation"]) < first_generation
+                    ]
             with path.open("w", newline="") as f:
                 w = csv.DictWriter(f, fieldnames=cols)
                 w.writeheader()
@@ -132,6 +137,11 @@ class RunLogger:
     def _append(path: Path, cols: list[str], row: dict[str, Any]) -> None:
         with path.open("a", newline="") as f:
             csv.DictWriter(f, fieldnames=cols).writerow(row)
+
+
+def _complete(row: dict, cols: list[str]) -> bool:
+    """False for a row cut short by a crash or a killed machine."""
+    return list(row) == cols and None not in row.values() and row["generation"].isdigit()
 
 
 def _atomic_write(path: Path, text: str) -> None:

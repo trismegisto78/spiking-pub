@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .neuron import decay_factor, lif_step, refractory_steps
+from .neuron import decay_factor, refractory_steps
 
 
 @dataclass
@@ -81,48 +81,62 @@ class SpikingNetwork:
         self.dt_ms = dt_ms
         b, d, n = net.batch, net.max_delay, net.n_neurons
         self._decay = decay_factor(net.tau_m, dt_ms)
+        self._gain = 1.0 - self._decay  # weight of the external current
         self._ref_steps = refractory_steps(net.refractory_ms, dt_ms)
         self._thresh = np.where(net.active, net.v_thresh, np.inf)
+        self._v_reset = np.ascontiguousarray(net.v_reset)
         # Evolved networks are sparse: propagate along the list of existing synapses
         # (gather from the spike history, scatter-add into the targets).
         bi, di, si, ti = np.nonzero(net.weights)
         self._syn_w = net.weights[bi, di, si, ti]
-        self._syn_from = (bi * d + di) * n + si  # flat index into history (B, D, N)
         self._syn_to = bi * n + ti  # flat index into (B, N)
+        # The spike history is a ring buffer of D slots of shape (B, N); slot `ptr` is
+        # written at the current step. For each value of ptr, precompute the flat index
+        # of the slot holding the spikes emitted (delay) steps ago for every synapse.
+        base = bi * n + si
+        self._syn_from = np.stack([((ptr - 1 - di) % d) * (b * n) + base for ptr in range(d)])
         self.v = np.empty((b, n))
         self.ref = np.empty((b, n), dtype=np.int64)
-        # history[:, k] holds the spikes emitted k + 1 steps ago.
-        self.history = np.empty((b, d, n))
+        self._history = np.empty((d, b, n))
+        self._hist_flat = self._history.reshape(-1)
+        self._buf = np.empty((b, n))
+        self._integrating = np.empty((b, n), dtype=bool)
+        self._ptr = 0
         self.reset()
 
     def reset(self) -> None:
-        np.copyto(self.v, self.net.v_reset)
+        np.copyto(self.v, self._v_reset)
         self.ref.fill(0)
-        self.history.fill(0.0)
+        self._history.fill(0.0)
+        self._ptr = 0
 
     def step(self, i_ext: np.ndarray | None = None, forced: np.ndarray | None = None) -> np.ndarray:
-        """One SNN step.
+        """One SNN step (same dynamics as ``neuron.lif_step``, with reused buffers).
 
         i_ext:  (B, N) constant external current for this step (or None).
         forced: (B, N) boolean spikes imposed from outside, e.g. by a spike encoder.
         Returns (B, N) boolean spikes emitted at this step.
         """
-        b, d, n = self.history.shape
-        contrib = self.history.reshape(-1)[self._syn_from] * self._syn_w
+        d, b, n = self._history.shape
+        contrib = self._hist_flat[self._syn_from[self._ptr]] * self._syn_w
         i_syn = np.bincount(self._syn_to, weights=contrib, minlength=b * n).reshape(b, n)
-        spikes = lif_step(
-            self.v,
-            self.ref,
-            i_syn,
-            0.0 if i_ext is None else i_ext,
-            self._decay,
-            self._thresh,
-            self.net.v_reset,
-            self._ref_steps,
-        )
+
+        v, ref, buf, integ = self.v, self.ref, self._buf, self._integrating
+        np.less_equal(ref, 0, out=integ)
+        np.multiply(v, self._decay, out=buf)
+        if i_ext is not None:
+            buf += self._gain * i_ext
+        buf += i_syn
+        np.copyto(v, buf, where=integ)
+        np.invert(integ, out=integ)  # now: refractory neurons
+        np.copyto(v, self._v_reset, where=integ)
+        np.subtract(ref, 1, out=ref, where=integ)
+        spikes = v >= self._thresh
+        spikes &= ~integ  # refractory neurons never spike
+        np.copyto(v, self._v_reset, where=spikes)
+        np.copyto(ref, self._ref_steps, where=spikes)
         if forced is not None:
             spikes |= forced & self.net.active
-        if d > 1:
-            self.history[:, 1:] = self.history[:, :-1]
-        self.history[:, 0] = spikes
+        self._history[self._ptr] = spikes
+        self._ptr = (self._ptr + 1) % d
         return spikes
