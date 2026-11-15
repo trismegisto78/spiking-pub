@@ -18,7 +18,7 @@ from ..config.schema import Config
 from ..snn.network import NetworkBatch
 
 GENOME_FORMAT = "spiking_evo.genome"
-GENOME_VERSION = 1
+GENOME_VERSION = 2  # v2 adds learning_rate and per-synapse plastic flags; v1 still loads
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,10 @@ class GenomeSpec:
     init_hidden: int
     init_connection_prob: float
     init_weight_sigma: float
+    plastic: bool = False  # plasticity enabled in this experiment
+    init_learning_rate: float = 0.0
+    learning_rate_max: float = 1.0
+    init_plastic_prob: float = 0.0
 
     @classmethod
     def from_config(cls, cfg: Config, n_inputs: int, n_outputs: int) -> GenomeSpec:
@@ -58,6 +62,10 @@ class GenomeSpec:
             init_hidden=n.hidden_init,
             init_connection_prob=n.init_connection_prob,
             init_weight_sigma=n.init_weight_sigma,
+            plastic=n.plasticity.enabled,
+            init_learning_rate=n.plasticity.init_learning_rate,
+            learning_rate_max=n.plasticity.learning_rate_max,
+            init_plastic_prob=n.plasticity.init_plastic_prob,
         )
 
     @property
@@ -81,6 +89,12 @@ class Genome:
     dst: np.ndarray  # (S,) int
     weight: np.ndarray  # (S,) float
     delay: np.ndarray  # (S,) int
+    plastic: np.ndarray | None = None  # (S,) bool: may this synapse change during life
+    learning_rate: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.plastic is None:
+            self.plastic = np.zeros(len(self.src), dtype=bool)
 
     # -- sizes ------------------------------------------------------------------
     @property
@@ -114,6 +128,9 @@ class Genome:
             weight=rng.normal(0.0, spec.init_weight_sigma, size=src.size),
             delay=rng.integers(1, spec.max_delay + 1, size=src.size),
         )
+        if spec.plastic:  # extra draws only when plasticity is on (keeps old runs identical)
+            g.plastic = rng.random(src.size) < spec.init_plastic_prob
+            g.learning_rate = spec.init_learning_rate
         return g.repair(spec)
 
     def copy(self) -> Genome:
@@ -121,6 +138,7 @@ class Genome:
             self.n_inputs,
             self.n_outputs,
             *(a.copy() for a in self._arrays()),
+            learning_rate=self.learning_rate,
         )
 
     def _arrays(self) -> tuple[np.ndarray, ...]:
@@ -133,6 +151,7 @@ class Genome:
             self.dst,
             self.weight,
             self.delay,
+            self.plastic,
         )
 
     def repair(self, spec: GenomeSpec) -> Genome:
@@ -151,8 +170,11 @@ class Genome:
         dst = np.asarray(self.dst, dtype=np.int64)
         w = np.asarray(self.weight, dtype=np.float64)
         d = np.rint(np.asarray(self.delay, dtype=np.float64))
+        pl = np.asarray(self.plastic, dtype=bool)
+        if pl.shape != src.shape:  # synapse arrays replaced by hand: no plastic flags
+            pl = np.zeros(src.shape, dtype=bool)
         ok = (src >= 0) & (src < n) & (dst >= self.n_inputs) & (dst < n) & np.isfinite(w)
-        src, dst, w, d = src[ok], dst[ok], w[ok], d[ok]
+        src, dst, w, d, pl = src[ok], dst[ok], w[ok], d[ok], pl[ok]
         # Canonical order and at most one synapse per (src, dst) pair.
         key = src * n + dst
         _, first = np.unique(key, return_index=True)
@@ -170,6 +192,10 @@ class Genome:
             dst=dst[idx],
             weight=np.clip(w[idx], -spec.weight_max, spec.weight_max),
             delay=np.clip(d[idx], 1, spec.max_delay).astype(np.int64),
+            plastic=pl[idx] & spec.plastic,
+            learning_rate=float(np.clip(self.learning_rate, 0.0, spec.learning_rate_max))
+            if spec.plastic
+            else 0.0,
         )
 
     # -- comparison / serialisation ---------------------------------------------------
@@ -181,6 +207,7 @@ class Genome:
                 a.shape == b.shape and np.array_equal(a, b)
                 for a, b in zip(self._arrays(), other._arrays(), strict=True)
             )
+            and self.learning_rate == other.learning_rate
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -200,14 +227,16 @@ class Genome:
                 "dst": self.dst.tolist(),
                 "weight": self.weight.tolist(),
                 "delay": self.delay.tolist(),
+                "plastic": self.plastic.astype(int).tolist(),
             },
+            "learning_rate": self.learning_rate,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Genome:
         if data.get("format") != GENOME_FORMAT:
             raise ValueError("not a spiking_evo genome")
-        if data.get("version") != GENOME_VERSION:
+        if data.get("version") not in (1, GENOME_VERSION):
             raise ValueError(f"unsupported genome version {data.get('version')}")
         nr, sy = data["neurons"], data["synapses"]
         return cls(
@@ -221,6 +250,8 @@ class Genome:
             dst=np.array(sy["dst"], dtype=np.int64),
             weight=np.array(sy["weight"], dtype=np.float64),
             delay=np.array(sy["delay"], dtype=np.int64),
+            plastic=np.array(sy.get("plastic", [0] * len(sy["src"])), dtype=bool),
+            learning_rate=float(data.get("learning_rate", 0.0)),
         )
 
 
@@ -246,6 +277,11 @@ def build_network_batch(genomes: list[Genome], spec: GenomeSpec) -> NetworkBatch
         net.refractory_ms[b, :n] = g.refractory_ms
         net.active[b, :n] = True
         net.weights[b, g.delay - 1, g.src, g.dst] = g.weight
+    if spec.plastic:
+        net.plastic = np.zeros(net.weights.shape, dtype=bool)
+        net.learning_rate = np.array([g.learning_rate for g in genomes])
+        for b, g in enumerate(genomes):
+            net.plastic[b, g.delay - 1, g.src, g.dst] = g.plastic
     return net
 
 
@@ -299,5 +335,7 @@ def adapt_genome(
         dst=dst[ok],
         weight=genome.weight[ok],
         delay=genome.delay[ok],
+        plastic=genome.plastic[ok],
+        learning_rate=genome.learning_rate,
     )
     return adapted.repair(spec)

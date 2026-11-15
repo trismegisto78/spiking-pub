@@ -45,6 +45,24 @@ class NeuronConfig:
 
 
 @dataclass
+class PlasticityConfig:
+    """Reward-modulated STDP: synapses learn during the agent's life (see snn/network.py).
+
+    Off by default. When on, every genome carries a learning rate and a per-synapse
+    "plastic" flag, both evolvable; weights are reset to the genome's at every birth."""
+
+    enabled: bool = False
+    tau_trace_ms: float = 20.0  # pre/post spike traces of the STDP window
+    tau_eligibility_ms: float = 500.0  # how long a spike pairing stays eligible for reward
+    a_minus_ratio: float = 1.05  # depression amplitude relative to potentiation
+    reward_scale: float = 5.0  # energy change counted as a reward of 1
+    reward_baseline_steps: float = 50.0  # running average the reward is compared with
+    init_learning_rate: float = 0.05  # learning rate of the initial population
+    learning_rate_max: float = 1.0
+    init_plastic_prob: float = 0.5  # share of plastic synapses in the initial population
+
+
+@dataclass
 class NetworkConfig:
     # Sensor encoding: "rate" (Bernoulli spikes), "latency" (time-to-first-spike
     # inside each tick) or "current" (intensity injected as constant current).
@@ -70,6 +88,7 @@ class NetworkConfig:
     thresh_range: tuple[float, float] = (0.1, 5.0)
     tau_range: tuple[float, float] = (2.0, 100.0)
     neuron: NeuronConfig = field(default_factory=NeuronConfig)
+    plasticity: PlasticityConfig = field(default_factory=PlasticityConfig)
 
 
 @dataclass
@@ -87,6 +106,10 @@ class MutationConfig:
     remove_synapse: float = 0.01
     add_neuron: float = 0.01
     remove_neuron: float = 0.005
+    # Plasticity genes (used only when network.plasticity.enabled).
+    learning_rate: float = 0.1  # per-genome probability of a learning-rate change
+    learning_rate_sigma: float = 0.02
+    plastic_flip: float = 0.01  # per-synapse probability of switching plastic on/off
 
 
 @dataclass

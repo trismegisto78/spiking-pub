@@ -44,6 +44,7 @@ def crossover(fitter: Genome, other: Genome, spec: GenomeSpec, rng: np.random.Ge
     swap = rng.random(common.size) < 0.5
     child.weight[ia[swap]] = other.weight[ib[swap]]
     child.delay[ia[swap]] = other.delay[ib[swap]]
+    child.plastic[ia[swap]] = other.plastic[ib[swap]]
     return child.repair(spec)
 
 
@@ -60,6 +61,11 @@ def mutate(genome: Genome, spec: GenomeSpec, m: MutationConfig, rng: np.random.G
     g.v_thresh[nf:][hit] += rng.normal(0.0, m.threshold_sigma, size=int(hit.sum()))
     hit = rng.random(g.n_neurons - nf) < m.tau
     g.tau_m[nf:][hit] *= np.exp(rng.normal(0.0, m.tau_sigma, size=int(hit.sum())))
+    if spec.plastic:  # plasticity genes (no draws otherwise: non-plastic runs unchanged)
+        if rng.random() < m.learning_rate:
+            g.learning_rate += rng.normal(0.0, m.learning_rate_sigma)
+        hit = rng.random(g.n_synapses) < m.plastic_flip
+        g.plastic[hit] = ~g.plastic[hit]
     g = g.repair(spec)
 
     # Per-genome structural mutations.
@@ -145,16 +151,27 @@ def remove_neuron(g: Genome, spec: GenomeSpec, rng: np.random.Generator) -> Geno
     return h.repair(spec)
 
 
-def _select_synapses(g: Genome, keep: np.ndarray) -> Genome:
+def _normalised(g: Genome) -> Genome:
+    """Copy of ``g`` with plastic flags matching its synapses (they may have been replaced)."""
     h = g.copy()
+    if h.plastic.shape != h.src.shape:
+        h.plastic = np.zeros(h.src.shape, dtype=bool)
+    return h
+
+
+def _select_synapses(g: Genome, keep: np.ndarray) -> Genome:
+    h = _normalised(g)
     h.src, h.dst, h.weight, h.delay = h.src[keep], h.dst[keep], h.weight[keep], h.delay[keep]
+    h.plastic = h.plastic[keep]
     return h
 
 
 def _with_synapses(g: Genome, spec: GenomeSpec, src, dst, weight, delay) -> Genome:
-    h = g.copy()
+    h = _normalised(g)
     h.src = np.concatenate([h.src, np.asarray(src, dtype=np.int64)])
     h.dst = np.concatenate([h.dst, np.asarray(dst, dtype=np.int64)])
     h.weight = np.concatenate([h.weight, np.asarray(weight, dtype=np.float64)])
     h.delay = np.concatenate([h.delay, np.asarray(delay, dtype=np.int64)])
+    # New synapses are plastic when the experiment has plasticity (no extra random draw).
+    h.plastic = np.concatenate([h.plastic, np.full(len(src), spec.plastic)])
     return h.repair(spec)

@@ -149,16 +149,23 @@ class Evolution:
                 action_threshold_hz=cfg.network.action_threshold_hz,
                 batch_offset=offset,
                 batch_total=total,
+                plasticity=cfg.network.plasticity if cfg.network.plasticity.enabled else None,
+                weight_max=cfg.network.weight_max,
             )
             res = world.run_episode(controller, seed, *keys)
-            stim_episodes.append(
-                {
-                    f"{s.name}.{k}": np.asarray(v, dtype=np.float64)
-                    for s in world.stimuli
-                    if hasattr(s, "episode_stats")
-                    for k, v in s.episode_stats().items()
-                }
-            )
+            ep_stats = {
+                f"{s.name}.{k}": np.asarray(v, dtype=np.float64)
+                for s in world.stimuli
+                if hasattr(s, "episode_stats")
+                for k, v in s.episode_stats().items()
+            }
+            if cfg.network.plasticity.enabled:
+                ep_stats["brain.learning_rate"] = np.array([g.learning_rate for g in genomes])
+                ep_stats["brain.plastic_share"] = np.array(
+                    [g.plastic.mean() if g.n_synapses else 0.0 for g in genomes]
+                )
+                ep_stats["brain.weight_change"] = controller.network.weight_change()
+            stim_episodes.append(ep_stats)
             per_episode.append(
                 BehaviourStats(
                     energy_gained=res.energy_gained,

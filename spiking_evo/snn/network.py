@@ -31,6 +31,9 @@ class NetworkBatch:
     active: np.ndarray  # (B, N) bool
     n_inputs: int
     n_outputs: int
+    # Plasticity (optional): which synapses may learn, and each network's learning rate.
+    plastic: np.ndarray | None = None  # (B, D, N, N) bool
+    learning_rate: np.ndarray | None = None  # (B,)
 
     @property
     def batch(self) -> int:
@@ -76,7 +79,26 @@ class NetworkBatch:
 
 
 class SpikingNetwork:
-    def __init__(self, net: NetworkBatch, dt_ms: float) -> None:
+    """Batched LIF network with optional reward-modulated STDP.
+
+    Plasticity (``plasticity`` given and ``net.plastic`` set): every neuron keeps an
+    exponentially decaying spike trace x (time constant ``tau_trace_ms``). Each plastic
+    synapse src -> dst keeps an eligibility e (time constant ``tau_eligibility_ms``):
+
+        when dst spikes:  e += x[src]                    (src fired shortly before: causal)
+        when src spikes:  e -= a_minus_ratio * x[dst]    (dst fired shortly before: acausal)
+
+    ``apply_reward(r)`` turns eligibility into learning: w += learning_rate * r * e, clipped
+    to +-weight_max. ``reset()`` restores the genome's weights (nothing learned is inherited).
+    """
+
+    def __init__(
+        self,
+        net: NetworkBatch,
+        dt_ms: float,
+        plasticity=None,
+        weight_max: float = 5.0,
+    ) -> None:
         self.net = net
         self.dt_ms = dt_ms
         b, d, n = net.batch, net.max_delay, net.n_neurons
@@ -87,8 +109,11 @@ class SpikingNetwork:
         self._v_reset = np.ascontiguousarray(net.v_reset)
         # Evolved networks are sparse: propagate along the list of existing synapses
         # (gather from the spike history, scatter-add into the targets).
-        bi, di, si, ti = np.nonzero(net.weights)
-        self._syn_w = net.weights[bi, di, si, ti]
+        learns = plasticity is not None and net.plastic is not None
+        mask = (net.weights != 0) | net.plastic if learns else net.weights != 0
+        bi, di, si, ti = np.nonzero(mask)
+        self._syn_w0 = net.weights[bi, di, si, ti]
+        self._syn_w = self._syn_w0.copy()
         self._syn_to = bi * n + ti  # flat index into (B, N)
         # The spike history is a ring buffer of D slots of shape (B, N); slot `ptr` is
         # written at the current step. For each value of ptr, precompute the flat index
@@ -102,9 +127,27 @@ class SpikingNetwork:
         self._buf = np.empty((b, n))
         self._integrating = np.empty((b, n), dtype=bool)
         self._ptr = 0
+        self.learns = learns
+        if learns:
+            pl = np.flatnonzero(net.plastic[bi, di, si, ti])
+            self._pl = pl  # positions (in the synapse list) of the plastic synapses
+            self._pl_pre = (bi * n + si)[pl]
+            self._pl_post = (bi * n + ti)[pl]
+            self._pl_batch = bi[pl]
+            self._pl_lr = np.asarray(net.learning_rate, dtype=np.float64)[bi[pl]]
+            self._trace_decay = np.exp(-dt_ms / plasticity.tau_trace_ms)
+            self._elig_decay = np.exp(-dt_ms / plasticity.tau_eligibility_ms)
+            self._a_minus = plasticity.a_minus_ratio
+            self._wmax = weight_max
+            self._trace = np.zeros(b * n)
+            self._elig = np.zeros(pl.size)
         self.reset()
 
     def reset(self) -> None:
+        np.copyto(self._syn_w, self._syn_w0)
+        if self.learns:
+            self._trace.fill(0.0)
+            self._elig.fill(0.0)
         np.copyto(self.v, self._v_reset)
         self.ref.fill(0)
         self._history.fill(0.0)
@@ -139,4 +182,30 @@ class SpikingNetwork:
             spikes |= forced & self.net.active
         self._history[self._ptr] = spikes
         self._ptr = (self._ptr + 1) % d
+        if self.learns and self._pl.size:
+            sp = spikes.reshape(-1)
+            post = sp[self._pl_post]
+            pre = sp[self._pl_pre]
+            self._elig *= self._elig_decay
+            self._elig += post * self._trace[self._pl_pre]
+            self._elig -= self._a_minus * pre * self._trace[self._pl_post]
+            self._trace *= self._trace_decay
+            self._trace += sp
         return spikes
+
+    def apply_reward(self, reward: np.ndarray) -> None:
+        """Convert eligibility into weight changes; ``reward`` is (B,) in about [-1, 1]."""
+        if not self.learns or self._pl.size == 0:
+            return
+        w = self._syn_w[self._pl] + self._pl_lr * reward[self._pl_batch] * self._elig
+        self._syn_w[self._pl] = np.clip(w, -self._wmax, self._wmax)
+
+    def weight_change(self) -> np.ndarray:
+        """(B,) mean absolute change of the plastic weights since the last reset."""
+        b = self.net.batch
+        if not self.learns or self._pl.size == 0:
+            return np.zeros(b)
+        diff = np.abs(self._syn_w[self._pl] - self._syn_w0[self._pl])
+        total = np.bincount(self._pl_batch, weights=diff, minlength=b)
+        count = np.bincount(self._pl_batch, minlength=b)
+        return total / np.maximum(count, 1)

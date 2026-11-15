@@ -30,6 +30,8 @@ class SNNController:
         motor_threshold_hz: float,
         rng: np.random.Generator,
         action_threshold_hz: float = 50.0,
+        plasticity=None,
+        weight_max: float = 5.0,
         batch_offset: int = 0,
         batch_total: int | None = None,
     ) -> None:
@@ -37,7 +39,9 @@ class SNNController:
             raise ValueError(f"the controller needs at least {N_MOTOR_OUTPUTS} output neurons")
         self.n_actions = net.n_outputs - N_MOTOR_OUTPUTS
         self.net = net
-        self.network = SpikingNetwork(net, dt_ms)
+        self.network = SpikingNetwork(net, dt_ms, plasticity=plasticity, weight_max=weight_max)
+        self.plasticity = plasticity if self.network.learns else None
+        self._reward_baseline = np.zeros(net.batch)
         self.encoder = encoder
         self.dt_ms = dt_ms
         self.steps_per_tick = steps_per_tick
@@ -65,6 +69,7 @@ class SNNController:
 
     def reset(self) -> None:
         self.network.reset()
+        self._reward_baseline.fill(0.0)
         self.noninput_spikes.fill(0)
         self.active_steps.fill(0)
         self.output_spikes.fill(0)
@@ -113,6 +118,17 @@ class SNNController:
         if self.n_actions == 0:
             return forward, turn
         return forward, turn, rates[:, N_MOTOR_OUTPUTS:] > self.action_threshold_hz
+
+    def feedback(self, energy_delta: np.ndarray, alive: np.ndarray) -> None:
+        """Reward-modulated plasticity: the energy change of the last world step, compared
+        with its running average (a reward prediction error), drives learning."""
+        p = self.plasticity
+        if p is None:
+            return
+        r = energy_delta / p.reward_scale
+        signal = np.clip(r - self._reward_baseline, -1.0, 1.0) * alive
+        self._reward_baseline += (r - self._reward_baseline) / p.reward_baseline_steps
+        self.network.apply_reward(signal)
 
     def _decode(self, diff: np.ndarray) -> np.ndarray:
         thr = self.motor_threshold_hz
