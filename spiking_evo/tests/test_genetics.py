@@ -178,3 +178,21 @@ def test_adapt_genome_keeps_shared_senses_and_hidden_neurons(spec):
     assert syn == {(1, 4): 0.5, (3, 10): 1.5, (9, 5): 2.0, (10, 7): 2.5, (4, 11): 3.0}
     assert np.array_equal(a.v_thresh[9:], g.v_thresh[7:])
     assert_valid(a, new_spec)
+
+
+def test_adapt_genome_wires_new_neurons_at_random(spec):
+    import dataclasses
+
+    old_names = ["food.front", "food.here", "bias"]
+    g = Genome.random(spec, np.random.default_rng(12))
+    new_names = ["food.front", "food.here", "bias", "hazard.here"]
+    new_spec = dataclasses.replace(spec, n_inputs=4, n_outputs=5, init_connection_prob=0.5)
+    plain = adapt_genome(g, old_names, new_names, 5, new_spec)
+    wired = adapt_genome(g, old_names, new_names, 5, new_spec, np.random.default_rng(0))
+    assert_valid(wired, new_spec)
+    new_in, new_out = 3, 4 + 4  # hazard.here input, 5th output
+    old_pairs = set(zip(plain.src.tolist(), plain.dst.tolist(), strict=True))
+    added = set(zip(wired.src.tolist(), wired.dst.tolist(), strict=True)) - old_pairs
+    assert added and all(s == new_in or d == new_out for s, d in added)
+    assert any(d == new_out for _, d in added) and any(s == new_in for s, _ in added)
+    assert old_pairs <= set(zip(wired.src.tolist(), wired.dst.tolist(), strict=True))
