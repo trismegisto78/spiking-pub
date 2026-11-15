@@ -1,0 +1,30 @@
+=== Evolutionary path, phase by phase (last 10 generations of each phase)
+food only      curriculum_50                               fitness     523 ±    39  alive 100%  farmers 0/8  hazard steps   nan
+food only      curriculum_50_plastic                       fitness     465 ±    77  alive 100%  farmers 0/8  hazard steps   nan learning_rate 0.014 weight_change 0.078 plastic_share 0.541
++ hazards      curriculum_50                               fitness     380 ±    50  alive  96%  farmers 0/8  hazard steps  37.3
++ hazards      curriculum_50_plastic                       fitness     344 ±    55  alive  96%  farmers 0/8  hazard steps  38.1 learning_rate 0.010 weight_change 0.089 plastic_share 0.505
++ farming      curriculum_50                               fitness    1766 ±  2146  alive  90%  farmers 3/8  hazard steps  28.5
++ farming      curriculum_50_plastic                       fitness    2960 ±  3405  alive  90%  farmers 3/8  hazard steps  33.2 learning_rate 0.007 weight_change 0.068 plastic_share 0.560
+spicy seasons  curriculum_50                               fitness    2785 ±  2613  alive  78%  farmers 5/8  hazard steps  22.1
+spicy seasons  curriculum_50_plastic                       fitness    2668 ±  3660  alive  85%  farmers 3/8  hazard steps  28.8 learning_rate 0.005 weight_change 0.054 plastic_share 0.525
+shock          curriculum_50                               fitness    1762 ±  1614  alive  63%  farmers 5/8  hazard steps  17.0
+shock          curriculum_50_plastic                       fitness    1857 ±  2465  alive  54%  farmers 3/8  hazard steps  18.3 learning_rate 0.008 weight_change 0.051 plastic_share 0.496
+
+=== Arrival in the spicy environment (first 10 generations)
+scratch terrain_50_spicy gens 0-9                          fitness      52 ±    64  alive  16%  farmers 1/8  hazard steps   7.6
+curriculum_50 gens 300-309                                 fitness    1517 ±  1898  alive  77%  farmers 3/8  hazard steps  25.2
+curriculum_50_plastic gens 300-309                         fitness    1943 ±  2693  alive  73%  farmers 3/8  hazard steps  27.1 learning_rate 0.006 weight_change 0.071 plastic_share 0.582
+
+=== After 150 generations in the spicy environment
+scratch terrain_50_spicy gens 140-149                      fitness     457 ±   406  alive  72%  farmers 3/8  hazard steps  15.9
+curriculum_50 gens 440-449                                 fitness    2785 ±  2613  alive  78%  farmers 5/8  hazard steps  22.1
+curriculum_50_plastic gens 440-449                         fitness    2668 ±  3660  alive  85%  farmers 3/8  hazard steps  28.8 learning_rate 0.005 weight_change 0.054 plastic_share 0.525
+scratch terrain_50_spicy gens 290-299                      fitness    1259 ±  1186  alive  82%  farmers 4/8  hazard steps  15.9
+
+=== Shock (harsh winter, half the wild food)
+scratch pop shock gens 0-4                                 fitness     582 ±   610  alive  61%  farmers 4/8  hazard steps  12.5
+curriculum_50 shock gens 450-454                           fitness    1356 ±  1062  alive  54%  farmers 5/8  hazard steps  16.8
+curriculum_50_plastic shock gens 450-454                   fitness    1951 ±  2874  alive  50%  farmers 3/8  hazard steps  19.0 learning_rate 0.005 weight_change 0.035 plastic_share 0.527
+scratch pop shock gens 40-49                               fitness     899 ±  1067  alive  64%  farmers 4/8  hazard steps  14.5
+curriculum_50 shock gens 490-499                           fitness    1762 ±  1614  alive  63%  farmers 5/8  hazard steps  17.0
+curriculum_50_plastic shock gens 490-499                   fitness    1857 ±  2465  alive  54%  farmers 3/8  hazard steps  18.3 learning_rate 0.008 weight_change 0.051 plastic_share 0.496

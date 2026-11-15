@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 120, tutti verdi; `ruff` pulito |
+| Test | 132, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -298,6 +298,52 @@ Test comportamentali (30 episodi nuovi):
 
 Prossimo passo proposto: continuità tra ambienti (popolazione che porta con sé ciò che ha
 imparato) e plasticità sinaptica durante la vita.
+
+### Continuità tra ambienti e plasticità: confronto su RunPod (15/11/2026)
+
+**Continuità (tappa A).** Fasi d'ambiente dentro un run (`phases`, cumulative) e partenza da
+un'altra popolazione (`--init-from`). Quando compaiono sensi o uscite nuovi, i neuroni nuovi
+vengono collegati a caso come in un cervello appena nato (`adapt_genome(..., rng)`). Una prima
+versione li lasciava scollegati: il neurone "agisci" non scattava mai e nessuna popolazione
+diventava agricoltrice (risultato scartato, archiviato fuori dalle analisi).
+
+**Plasticità (tappa B).** STDP modulata dalla ricompensa: tracce di idoneità per sinapsi, la
+variazione di energia rispetto alla media recente fa da ricompensa. Il genoma porta una
+velocità di apprendimento e quali sinapsi sono plastiche; entrambe evolvono. Pesi riportati a
+quelli del genoma a ogni nascita. Costo: circa +40% di tempo.
+
+**Esperimento** (`runpod/curriculum_job.sh`, pod cpu3c da 32 vCPU, 27 minuti di calcolo, ~0.67 $):
+percorso `curriculum_50` (cibo → pericoli → agricoltura → stagioni pepate → shock con inverno
+durissimo e metà del cibo) senza e con plasticità, contro popolazioni da zero nell'ambiente
+finale (`terrain_50_spicy`, poi `shock_50`); 8 seed ciascuno. Dettagli in
+`results/2026-11-15-curriculum-runpod/`.
+
+| confronto | da zero | percorso, cervello fisso | percorso, cervello plastico |
+|---|---|---|---|
+| arrivo nell'ambiente pepato (prime 10 gen): fitness | 52 | 1517 | 1943 |
+| arrivo: vive a fine episodio | 16% | 77% | 73% |
+| dopo 150 gen nell'ambiente pepato: fitness | 457 | 2785 | 2668 |
+| dopo 150 gen: seed agricoltori | 3/8 | 5/8 | 3/8 |
+| (da zero dopo 300 gen: fitness 1259, agricoltori 4/8) | | | |
+| shock, prime 5 gen: fitness | 582 | 1356 | 1951 |
+| shock, ultime 10 gen: fitness / vive | 899 / 64% | 1762 / 63% | 1857 / 54% |
+
+Cosa dicono i dati:
+- **La continuità aiuta molto.** Chi arriva con una storia sopravvive da subito (77% contro
+  16%) e in 150 generazioni fa 6 volte meglio di chi parte da zero; anche dopo il doppio delle
+  generazioni chi parte da zero resta indietro. Nello shock le popolazioni con storia rendono
+  il doppio, ma non sopravvivono di più.
+- **La plasticità, così com'è, non aiuta.** Le differenze tra cervello fisso e plastico sono
+  piccole rispetto alla variabilità tra seed. E l'evoluzione **la spegne**: la velocità di
+  apprendimento media scende da 0.05 a 0.014 in 100 generazioni e a 0.006–0.008 alla fine.
+  Imparare durante la vita, con questa regola e questa ricompensa, costa più di quanto rende.
+- Possibili motivi, da verificare: la ricompensa (variazione di energia) è rumorosa e include
+  costi costanti; l'ambiente cambia soprattutto *tra* generazioni, poco *dentro* una vita (il
+  senso della stagione non viene usato); la regola STDP è semplice.
+
+Prossimi passi possibili: ambienti che cambiano dentro la vita in modo imprevedibile (es.
+campi e pericoli che si spostano a metà vita), una ricompensa più pulita, e la tappa C
+(cervello che nasce piccolo e cresce), che dà alla plasticità neuroni nuovi su cui lavorare.
 
 ## 3. Mappa del codice
 
