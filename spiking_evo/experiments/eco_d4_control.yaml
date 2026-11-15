@@ -1,0 +1,116 @@
+# Stage D4: no imposed juvenile handicaps; the only difference between young and adult is
+# physical: the brain a juvenile has grown so far (dormant neurons wake by investing
+# energy). Rich world (food, hazards, farming with crop varieties, spicy seasons).
+# "Feed" is only a physical possibility (any juvenile, 20% lost); nothing rewards it.
+# CONTROL: same senses and action, feeding transfers no energy.
+experiment: eco_d4_control
+seed: 1
+world:
+  width: 50
+  height: 50
+agent:
+  metabolic_cost: 0.08
+  initial_energy: 60.0
+stimuli:
+- type: body
+- type: season
+  random_phase: true
+  channels:
+  - phase_sin
+  - phase_cos
+  seasons:
+  - name: spring
+    length: 125
+    modifiers:
+      food.regrow_rate: 2.0
+      terrain.growth_rate: 1.5
+  - name: summer
+    length: 125
+    living_cost: 0.05
+    modifiers:
+      hazard.damage: 2.0
+  - name: autumn
+    length: 125
+    modifiers:
+      terrain.harvest_energy: 1.5
+  - name: winter
+    length: 125
+    living_cost: 0.15
+    modifiers:
+      food.regrow_rate: 0.0
+      terrain.growth_rate: 0.2
+      hazard.damage: 0.5
+      terrain.action_cost: 2.0
+- type: food
+  count: 40
+  regrow_rate: 0.01
+- type: hazard
+  count: 8
+  radius: 2.5
+  damage:
+  - 1.0
+  - 3.0
+  - 6.0
+- type: terrain
+  action: 0
+  fertile_zones: 8
+  fertile_radius: 5.0
+  crops:
+  - name: slow
+    grow_time: 30
+    energy: 15.0
+    weight: 3
+  - name: medium
+    grow_time: 15
+    energy: 7.0
+    weight: 3
+  - name: fast
+    grow_time: 5
+    energy: 2.0
+    weight: 3
+  - name: jackpot
+    grow_time: 5
+    energy: 60.0
+    weight: 0.5
+  poison_damage: 2.0
+  poison_duration: 200
+  action_cost: 0.05
+- type: kin
+  action: 1
+  feed_amount: 0.0
+  feed_efficiency: 0.8
+  kin_only: false
+network:
+  encoder: rate
+  hidden_max: 30
+  hidden_init: 5
+  action_outputs: 2
+  development:
+    enabled: true
+    trigger: growth
+    init_dormant_prob: 0.5
+    init_wake_at: 10.0
+    neuron_cost: 0.002
+genetics:
+  mutation:
+    weight: 0.1
+    threshold: 0.05
+    add_synapse: 0.02
+    remove_synapse: 0.01
+ecosystem:
+  capacity: 300
+  init_from: spiking_evo/experiments/seed_populations/foragers.json.gz
+  initial_population: 120
+  ticks: 200000
+  log_every: 1000
+  snapshot_every: 50000
+  max_age: 3000
+  juvenile_speed: 1.0
+  juvenile_damage: 1.0
+  init_repro_threshold: 100.0
+  init_endowment: 0.5
+  init_clutch: 2
+  init_juvenile_age: 150.0
+  growth_rate: 0.1
+  growth_reserve: 10.0
+  juvenile_can_act: true

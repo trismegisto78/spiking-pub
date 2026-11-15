@@ -47,7 +47,8 @@ LOG_COLUMNS = [
     "mean_age", "mean_age_at_death", "mean_energy", "max_generation", "lineages",
     "repro_threshold_mean", "endowment_mean", "clutch_mean", "juvenile_age_mean",
     "hidden_mean", "synapses_mean", "food_eaten", "hazard_steps",
-    "awake_juveniles_mean", "awake_adults_mean", "dormant_left_mean", "growth_invested",
+    "dormant_at_birth_mean", "awake_juveniles_mean", "awake_adults_mean", "dormant_left_mean",
+    "growth_invested",
     "feed_events", "energy_given", "elapsed_s",
 ]  # fmt: skip
 
@@ -374,6 +375,11 @@ class Ecosystem:
             else 0.0,
             "food_eaten": int(food.eaten.sum()) if food is not None else "",
             "hazard_steps": int(hazard.steps_inside.sum()) if hazard is not None else "",
+            "dormant_at_birth_mean": float(
+                np.mean([self.genomes[i].dormant.sum() for i in np.flatnonzero(alive)])
+            )
+            if n and dev
+            else "",
             "awake_juveniles_mean": float(awake[juv].mean()) if juv.any() and dev else "",
             "awake_adults_mean": float(awake[adu].mean()) if adu.any() and dev else "",
             "dormant_left_mean": float(self.controller.dormant_left()[alive].mean())
