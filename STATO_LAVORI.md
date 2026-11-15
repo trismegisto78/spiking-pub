@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 132, tutti verdi; `ruff` pulito |
+| Test | 140, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -375,6 +375,43 @@ segnale è troppo debole e rumoroso per imparare *dove* andare, e intanto distur
 comportamenti che l'evoluzione aveva già fissato. Strade possibili: regole più semplici e
 mirate (es. apprendimento associativo solo sulle sinapsi sensori→motori, o "abituazione"),
 segnali di ricompensa immediati, oppure plasticità limitata ai neuroni nuovi (tappa C).
+
+### Tappa C: cervello che nasce piccolo e cresce (15/11/2026)
+
+`network.development`: i neuroni nascosti possono essere **dormienti alla nascita** (gene
+`dormant`) e svegliarsi durante la vita quando la "difficoltà" accumulata (energia tolta dagli
+stimoli: danni, veleno, costi delle azioni) supera la loro soglia (gene `wake_at`). Ogni
+neurone sveglio costa `neuron_cost` energia per passo. Con `plastic_new_only` la plasticità
+agisce solo sulle sinapsi dei neuroni risvegliati. Unica aggiunta al core: un controller può
+dichiarare `energy_cost()`, pagato insieme al costo metabolico.
+
+Esperimento su RunPod (pod cpu3c 32 vCPU, ~37 minuti, ~0.62 $): mondo che cambia (zone spostate
+ogni 250 passi), 10 neuroni nascosti iniziali, costo 0.002 per neurone sveglio, 8 seed ×
+300 generazioni; confronto con i run precedenti `dynamic_fixed_50` e `dynamic_plastic_50`.
+Dettagli in `results/2026-11-15-develop-runpod/`. Ultime 10 generazioni:
+
+| condizione | fitness | vive | agricoltori | neuroni dormienti alla nascita → svegliati |
+|---|---|---|---|---|
+| cervello fisso (test precedente, 5 neuroni, nessun costo) | 1320 ± 1485 | 86% | 5/8 | – |
+| cervello plastico (test precedente) | 897 ± 743 | 86% | 3/8 | – |
+| tutti svegli dalla nascita, con costo (controllo) | 1795 ± 1187 | 84% | 6/8 | 0 → 0 |
+| **nasce piccolo e cresce** | **2423 ± 1139** | 78% | **8/8** | 5.8 → 5.3 |
+| crescita + apprendimento solo sui neuroni nuovi | 1093 ± 1027 | 83% | 3/8 | 4.3 → 2.5 |
+| crescita + apprendimento su tutto | 1473 ± 1178 | 82% | 5/8 | 5.4 → 4.1 |
+
+- **Lo sviluppo funziona**: a parità di mondo, cervello e costo, le popolazioni che nascono
+  con circa 6 neuroni dormienti e li svegliano durante la vita fanno meglio del controllo
+  con tutto sveglio dalla nascita (+35%) e diventano agricoltrici in tutti gli 8 seed. La
+  differenza è circa mezza deviazione standard tra seed: chiara come tendenza, da confermare
+  con più seed.
+- Quasi tutti i neuroni dormienti si svegliano entro la vita (5.3 su 5.8): l'evoluzione usa
+  lo sviluppo come **calendario di crescita** guidato dalle difficoltà, non come riserva
+  lasciata spenta. Il vantaggio può venire dal risparmio di energia nei primi passi, o dal
+  fatto che il cervello si "completa" quando la creatura incontra i problemi.
+- **La plasticità continua a peggiorare** i risultati, anche limitata ai neuroni nuovi.
+  Curiosità: quando l'apprendimento è limitato ai neuroni nuovi l'evoluzione **alza** la
+  velocità di apprendimento (0.05 → 0.064), mentre quando agisce su tutto la abbassa a
+  0.007: imparare sui neuroni nuovi è tollerato, toccare quelli vecchi è dannoso.
 
 ## 3. Mappa del codice
 

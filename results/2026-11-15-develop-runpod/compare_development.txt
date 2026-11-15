@@ -1,0 +1,21 @@
+=== first 10 generations
+dynamic_fixed_50                 fitness     172 ±    280  alive  47%  farmers 1/8  hazard  10.2
+dynamic_plastic_50               fitness      51 ±     68  alive  44%  farmers 0/8  hazard  10.5  lr 0.0501
+dynamic_awake_cost_50            fitness     239 ±    375  alive  23%  farmers 1/8  hazard  12.0  dormant@birth  0.0  woken  0.0  awake@end 15.0  difficulty   72.1
+dynamic_develop_50               fitness     222 ±    378  alive  25%  farmers 1/8  hazard  12.8  dormant@birth  5.0  woken  2.9  awake@end 13.0  difficulty   72.5
+dynamic_develop_plastic_new_50   fitness      93 ±    166  alive  13%  farmers 0/8  hazard   7.2  dormant@birth  4.8  woken  2.3  awake@end 12.5  difficulty   38.7  lr 0.0512
+dynamic_develop_plastic_all_50   fitness      16 ±     36  alive  11%  farmers 0/8  hazard   6.4  dormant@birth  4.9  woken  2.3  awake@end 12.4  difficulty   31.0  lr 0.0493
+=== generations 140-149
+dynamic_fixed_50                 fitness    1205 ±    953  alive  90%  farmers 5/8  hazard  21.2
+dynamic_plastic_50               fitness     446 ±    291  alive  85%  farmers 2/8  hazard  25.2  lr 0.0197
+dynamic_awake_cost_50            fitness    1346 ±    808  alive  82%  farmers 6/8  hazard  23.0  dormant@birth  0.0  woken  0.0  awake@end 16.0  difficulty  138.8
+dynamic_develop_50               fitness    2250 ±   1092  alive  79%  farmers 8/8  hazard  23.6  dormant@birth  4.7  woken  4.3  awake@end 15.8  difficulty  168.7
+dynamic_develop_plastic_new_50   fitness     751 ±    820  alive  77%  farmers 3/8  hazard  20.7  dormant@birth  4.3  woken  2.9  awake@end 13.7  difficulty  106.5  lr 0.0481
+dynamic_develop_plastic_all_50   fitness     903 ±    760  alive  78%  farmers 5/8  hazard  16.2  dormant@birth  4.8  woken  3.6  awake@end 14.2  difficulty  104.9  lr 0.0282
+=== last 10 generations
+dynamic_fixed_50                 fitness    1320 ±   1485  alive  86%  farmers 5/8  hazard  18.4
+dynamic_plastic_50               fitness     897 ±    743  alive  86%  farmers 3/8  hazard  25.5  lr 0.0287
+dynamic_awake_cost_50            fitness    1795 ±   1187  alive  84%  farmers 6/8  hazard  19.4  dormant@birth  0.0  woken  0.0  awake@end 17.0  difficulty  147.4
+dynamic_develop_50               fitness    2423 ±   1139  alive  78%  farmers 8/8  hazard  15.4  dormant@birth  5.8  woken  5.3  awake@end 17.3  difficulty  158.3
+dynamic_develop_plastic_new_50   fitness    1093 ±   1027  alive  83%  farmers 3/8  hazard  20.1  dormant@birth  4.3  woken  2.5  awake@end 14.3  difficulty  114.5  lr 0.0642
+dynamic_develop_plastic_all_50   fitness    1473 ±   1178  alive  82%  farmers 5/8  hazard  18.3  dormant@birth  5.4  woken  4.1  awake@end 15.4  difficulty  123.8  lr 0.0070
