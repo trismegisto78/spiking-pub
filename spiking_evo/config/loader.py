@@ -167,6 +167,10 @@ def validate(cfg: Config) -> None:
         (cfg.fitness.episodes >= 1, "fitness.episodes must be >= 1"),
         (n.action_outputs >= 0, "network.action_outputs must be >= 0"),
         (n.plasticity.reward in ("energy", "stimuli"), "network.plasticity.reward: energy|stimuli"),
+        (
+            n.development.trigger in ("difficulty", "growth"),
+            "network.development.trigger: difficulty|growth",
+        ),
         (len(cfg.stimuli) >= 1, "at least one stimulus is required"),
         (all("type" in s for s in cfg.stimuli), "every stimulus needs a 'type'"),
     ]

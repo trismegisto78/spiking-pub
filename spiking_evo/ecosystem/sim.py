@@ -45,7 +45,9 @@ LOG_COLUMNS = [
     "tick", "population", "juveniles", "births", "deaths_starvation", "deaths_old_age",
     "mean_age", "mean_age_at_death", "mean_energy", "max_generation", "lineages",
     "repro_threshold_mean", "endowment_mean", "clutch_mean", "juvenile_age_mean",
-    "hidden_mean", "synapses_mean", "food_eaten", "hazard_steps", "elapsed_s",
+    "hidden_mean", "synapses_mean", "food_eaten", "hazard_steps",
+    "awake_juveniles_mean", "awake_adults_mean", "dormant_left_mean", "growth_invested",
+    "feed_events", "energy_given", "elapsed_s",
 ]  # fmt: skip
 
 
@@ -163,6 +165,17 @@ class Ecosystem:
         self.lineage = self.ids.copy()
         self.generation = np.zeros(K, dtype=np.int64)
         self.last_birth = np.full(K, -(10**9), dtype=np.int64)
+        # Ids and parents, shared with stimuli (kin) through world.extra.
+        self.world.extra["id"] = self.ids
+        self.world.extra["parent"] = self.parent
+        if cfg.network.development.enabled:
+            dev = cfg.network.development
+            rng_d = derive_rng(cfg.seed, "eco", "dormant")
+            for g in self.genomes:
+                if not g.dormant.any():  # e.g. a seed species evolved without development
+                    hidden = np.arange(g.n_neurons) >= self.spec.n_fixed
+                    g.dormant = hidden & (rng_d.random(g.n_neurons) < dev.init_dormant_prob)
+                    g.wake_at = np.full(g.n_neurons, dev.init_wake_at)
         self.tick = 0
         self.encoder = make_encoder(
             cfg.network.encoder,
@@ -219,9 +232,26 @@ class Ecosystem:
         w["deaths_old_age"] += int(old.sum())
         w["deaths_starvation"] += int((died & ~old).sum())
         w["death_ages"].extend(a.age[died].tolist())
+        self._grow()
         self._reproduce()
         self.tick += 1
         self._update_stage()
+
+    def _grow(self) -> None:
+        """Development by growth: agents with dormant neurons invest energy in their brain."""
+        dev = self.cfg.network.development
+        if not (dev.enabled and dev.trigger == "growth"):
+            return
+        eco, a = self.cfg.ecosystem, self.world.agents
+        left = self.controller.dormant_left() > 0
+        invest = np.where(
+            a.alive & left,
+            np.minimum(eco.growth_rate, np.maximum(a.energy - eco.growth_reserve, 0)),
+            0.0,
+        )
+        a.energy -= invest
+        self._window["growth"] = self._window.get("growth", 0.0) + float(invest.sum())
+        self.controller.invest_in_growth(invest)
 
     def _reproduce(self) -> None:
         eco, a, tr = self.cfg.ecosystem, self.world.agents, self.traits
@@ -301,6 +331,18 @@ class Ecosystem:
 
         stim = {s.name: s for s in self.world.stimuli}
         food = stim.get("food")
+        kin = stim.get("kin")
+        dev = self.cfg.network.development.enabled
+        awake = self.controller.network.awake_count(self.spec.n_inputs) if dev else np.zeros(self.K)
+        juv = alive & (a.stage == 1)
+        adu = alive & (a.stage == 0)
+        if kin is not None:
+            fe, eg = float(kin.feed_events.sum()), float(kin.energy_given.sum())
+            prev = getattr(self, "_kin_prev", (0.0, 0.0))
+            self._kin_prev = (fe, eg)
+            feed_events, energy_given = fe - prev[0], eg - prev[1]
+        else:
+            feed_events = energy_given = ""
         hazard = stim.get("hazard")
         row = {
             "tick": self.tick,
@@ -328,6 +370,14 @@ class Ecosystem:
             else 0.0,
             "food_eaten": int(food.eaten.sum()) if food is not None else "",
             "hazard_steps": int(hazard.steps_inside.sum()) if hazard is not None else "",
+            "awake_juveniles_mean": float(awake[juv].mean()) if juv.any() and dev else "",
+            "awake_adults_mean": float(awake[adu].mean()) if adu.any() and dev else "",
+            "dormant_left_mean": float(self.controller.dormant_left()[alive].mean())
+            if n and dev
+            else "",
+            "growth_invested": round(w.get("growth", 0.0), 2),
+            "feed_events": feed_events,
+            "energy_given": energy_given,
             "elapsed_s": round(elapsed, 2),
         }
         return row

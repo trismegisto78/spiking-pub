@@ -174,7 +174,7 @@ class SNNController:
     ) -> None:
         """Reward-modulated plasticity: the energy change of the last world step, compared
         with its running average (a reward prediction error), drives learning."""
-        if self.development is not None:
+        if self.development is not None and self.development.trigger == "difficulty":
             # Difficulty = energy taken by stimuli (damage, poison, costs of acting...).
             lost = -(stimulus_delta if stimulus_delta is not None else energy_delta)
             self.difficulty += np.maximum(lost, 0.0) * alive
@@ -189,6 +189,21 @@ class SNNController:
         signal = np.clip(r - self._reward_baseline, -1.0, 1.0) * alive
         self._reward_baseline += (r - self._reward_baseline) / p.reward_baseline_steps
         self.network.apply_reward(signal)
+
+    def invest_in_growth(self, amount: np.ndarray) -> None:
+        """Development by growth: ``amount`` (B,) energy goes into the brain; dormant neurons
+        wake when the total invested reaches their wake_at."""
+        if self.development is None:
+            return
+        self.difficulty += amount
+        self.woken += self.network.wake(self.difficulty)
+
+    def dormant_left(self) -> np.ndarray:
+        """(B,) dormant neurons not yet awake."""
+        if self.development is None:
+            return np.zeros(self.net.batch, dtype=np.int64)
+        n = self.network
+        return (self.net.dormant & ~n.awake & self.net.active).sum(axis=1)
 
     def energy_cost(self) -> np.ndarray | None:
         """Energy the brain uses this step: neuron_cost per awake non-input neuron."""

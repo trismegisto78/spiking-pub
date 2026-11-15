@@ -127,3 +127,68 @@ def test_init_from_seed_population(tmp_path):
     assert all(g.n_inputs == len(sim2.input_names) for g in sim2.genomes)
     with pytest.raises(ValueError):
         eco_config(capacity="x")
+
+
+def d2_config(**eco):
+    cfg = eco_config(**eco)
+    from spiking_evo.config import config_to_dict
+
+    d = config_to_dict(cfg)
+    d["stimuli"].append({"type": "kin", "feed_amount": 2.0, "feed_efficiency": 0.5})
+    d["network"]["action_outputs"] = 1
+    d["network"]["development"] = {"enabled": True, "trigger": "growth",
+                                   "init_dormant_prob": 1.0, "init_wake_at": 3.0}  # fmt: skip
+    d["ecosystem"]["growth_rate"] = 1.0
+    d["ecosystem"]["growth_reserve"] = 5.0
+    return config_from_dict(d)
+
+
+def test_growth_wakes_neurons_by_investing_energy():
+    sim = Ecosystem(d2_config())
+    a = sim.world.agents
+    i = int(np.flatnonzero(a.alive & (sim.controller.dormant_left() > 0))[0])
+    left0 = sim.controller.dormant_left()[i]
+    a.energy[i] = 100.0
+    e0 = a.energy[i]
+    sim._grow()
+    assert a.energy[i] == e0 - 1.0  # invested growth_rate
+    for _ in range(3):
+        sim._grow()
+    assert sim.controller.dormant_left()[i] < left0  # wake_at 3 reached
+    a.energy[i] = 5.0  # at the reserve: no more investment
+    sim._grow()
+    assert a.energy[i] == 5.0
+
+
+def test_kin_sense_and_feeding():
+    sim = Ecosystem(d2_config())
+    a, kin = sim.world.agents, {s.name: s for s in sim.world.stimuli}["kin"]
+    a.alive[:] = False
+    # adult 0 (id 100) at (5,5) facing north; its juvenile 1 just north; stranger 2 adjacent
+    for slot, (x, y, stage, ident, par) in enumerate(
+        [(5, 5, 0, 100, -1), (5, 4, 1, 101, 100), (6, 5, 1, 102, 999)]
+    ):
+        a.alive[slot], a.x[slot], a.y[slot], a.stage[slot] = True, x, y, stage
+        sim.ids[slot], sim.parent[slot] = ident, par
+    a.heading[0] = 0
+    a.energy[:3] = [50.0, 1.0, 0.5]
+    obs = kin.sense(a, sim.world)
+    ch = kin.channels
+    assert obs[0, ch.index("child_front")] > 0 and obs[0, ch.index("child_here")] == 1.0
+    assert obs[0, ch.index("child_left")] == 0
+    assert obs[1, ch.index("parent_here")] == 1.0
+    a.action[:] = False
+    a.action[0, 0] = True
+    delta = kin.interact(a, sim.world)
+    assert delta[0] == -2.0 and delta[1] == 1.0 and delta[2] == 0.0  # only own child, 50% lost
+    kin.kin_only = False
+    delta = kin.interact(a, sim.world)
+    assert delta[2] == 1.0  # the poorest juvenile in reach
+    a.stage[0] = 1  # juveniles cannot feed
+    assert not kin.interact(a, sim.world).any()
+
+
+def test_d2_runs_end_to_end(tmp_path):
+    sim = Ecosystem(d2_config(), tmp_path)
+    rows = sim.run(ticks=100)
+    assert rows and rows[-1]["growth_invested"] >= 0 and rows[-1]["feed_events"] != ""

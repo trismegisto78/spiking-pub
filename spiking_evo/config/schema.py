@@ -78,6 +78,9 @@ class DevelopmentConfig:
     init_wake_at: float = 20.0  # difficulty needed to wake a dormant neuron (initial pop)
     neuron_cost: float = 0.002  # energy per awake non-input neuron per world step
     plastic_new_only: bool = False  # with plasticity: only synapses of woken neurons learn
+    # What wakes dormant neurons: "difficulty" (energy taken by stimuli) or "growth" (energy
+    # the agent invests in its brain; used by the ecosystem, see ecosystem.growth_rate).
+    trigger: str = "difficulty"
 
 
 @dataclass
@@ -203,6 +206,11 @@ class EcosystemConfig:
     clutch_max: int = 6
     juvenile_age_range: tuple[float, float] = (0.0, 1000.0)
     trait_sigma: float = 0.1  # log-normal mutation step of the continuous traits
+    # Brain growth (with network.development.trigger "growth"): every step an agent with
+    # dormant neurons invests up to growth_rate energy in its brain, keeping at least
+    # growth_reserve; a dormant neuron wakes when the invested energy reaches its wake_at.
+    growth_rate: float = 0.1
+    growth_reserve: float = 10.0
     clutch_change: float = 0.1  # probability that clutch size changes by +-1 at birth
 
 

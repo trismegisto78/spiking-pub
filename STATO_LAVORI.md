@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 147, tutti verdi; `ruff` pulito |
+| Test | 150, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -470,6 +470,24 @@ Prima prova (`eco_d1.yaml`, seed 1, 50 000 passi, ~3.5 minuti in locale):
   propria energia) e un'infanzia più lunga; alla fine dote e infanzia tornano a scendere.
 - Un solo seed: tendenze da confermare. Prossimo passo D2: crescita del cervello che costa
   energia, senso della parentela, azione "nutri".
+
+### Tappa D2: crescita che costa, parentela, nutrimento (15/11/2026)
+
+- **Crescita che costa energia** (`network.development.trigger: growth`): i neuroni dormienti
+  si svegliano quando la creatura ha investito abbastanza energia nel cervello
+  (`ecosystem.growth_rate` per passo, sopra una riserva `growth_reserve`; soglia `wake_at`
+  per neurone, gene). Nei fondatori presi da una specie senza sviluppo, metà dei neuroni
+  nascosti viene resa dormiente.
+- **Stimolo `kin`** (`stimuli/kin.py`): senso direzionale dei propri piccoli (`child_*`, con
+  `child_here` = uno è a portata) e del proprio genitore (`parent_*`); azione "nutri": un
+  adulto cede `feed_amount` energia al proprio piccolo più povero a portata, che ne riceve
+  `feed_efficiency`. Con `kin_only: false` si può nutrire qualunque piccolo. Nessun obbligo:
+  lo decide il cervello evoluto.
+- Il core espone `world.extra` (ids e genitori pubblicati dall'ecosistema); calcolo dei
+  rapporti solo tra creature vive (3.9 ms per passo con 300 posti).
+- Esperimento `eco_d2.yaml`. Prima prova (seed 1, 10 000 passi): la popolazione regge
+  (67–117), i piccoli hanno meno neuroni svegli degli adulti (7–8 contro 12) e crescono;
+  il nutrimento avviene di rado (1–14 volte ogni 250 passi), cioè per ora per caso.
 
 ## 3. Mappa del codice
 

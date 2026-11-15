@@ -95,6 +95,9 @@ class World:
         self.agents = Agents.create(n_agents, arena, agent_cfg.initial_energy, n_actions)
         self.clock = clock or Clock()
         self.visited = np.zeros((n_agents, self.height, self.width), dtype=bool)
+        # Per-agent information that a simulation layer (e.g. the ecosystem: ids, parents)
+        # shares with stimuli. The core never reads it.
+        self.extra: dict[str, np.ndarray] = {}
 
     def per_arena(self, draw: Callable[[tuple[int, ...]], np.ndarray], *tail: int) -> np.ndarray:
         """Random draw with one row per arena, chunk-invariant.
