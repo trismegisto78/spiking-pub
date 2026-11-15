@@ -1,0 +1,13 @@
+eco_d3_harsh_care        runs 24 extinct  0  feed rate late   0.44  delta feed  +0.13  juvenile mortality 0.24  population   32.6
+eco_d3_harsh_control     runs 24 extinct  0  feed rate late   0.80  delta feed  +0.43  juvenile mortality 0.22  population   33.0
+eco_d3_mild_care         runs 24 extinct  0  feed rate late   0.61  delta feed  +0.24  juvenile mortality 0.30  population   78.2
+eco_d3_mild_control      runs 24 extinct  0  feed rate late   0.45  delta feed  +0.14  juvenile mortality 0.23  population   76.4
+
+=== Pre-registered tests (one-sided permutation, alpha 0.05)
+H1 mild : delta_feed care - control = +0.09, p = 0.306
+H2 mild : juvenile mortality control - care = -0.069, p = 0.956
+H2 mild : population care - control = +1.8, p = 0.035
+H1 harsh: delta_feed care - control = -0.30, p = 0.915
+H2 harsh: juvenile mortality control - care = -0.020, p = 0.665
+H2 harsh: population care - control = -0.4, p = 0.752
+H3: (harsh care-control) - (mild care-control) in delta_feed = -0.39, p = 0.917

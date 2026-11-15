@@ -489,6 +489,38 @@ Prima prova (`eco_d1.yaml`, seed 1, 50 000 passi, ~3.5 minuti in locale):
   (67–117), i piccoli hanno meno neuroni svegli degli adulti (7–8 contro 12) e crescono;
   il nutrimento avviene di rado (1–14 volte ogni 250 passi), cioè per ora per caso.
 
+### Tappa D3: l'accudimento NON emerge (15/11/2026)
+
+Esperimento su RunPod (pod cpu3c 32 vCPU, ~30 minuti, ~0.48 $): 4 condizioni × 24 seed ×
+50 000 passi, ecosistema D2; mondo abbondante (`eco_d3_mild_*`) o duro (meno cibo, piccoli
+3 volte più fragili, `eco_d3_harsh_*`); nutrimento attivo (`*_care`) o controllo con stessi
+sensi e stessa azione ma senza trasferimento (`*_control`). Ipotesi e test fissati prima
+(`scripts/compare_eco.py`); risultati in `results/2026-11-15-eco-d3/`.
+
+| condizione | popolazione | nutrimenti ogni 250 passi | figli per parto | dote | infanzia |
+|---|---|---|---|---|---|
+| abbondante, nutrimento | 78.9 | 10.2 | 2.47 | 0.51 | 95 |
+| abbondante, controllo | 77.6 | 7.6 | 2.28 | 0.58 | 103 |
+| duro, nutrimento | 32.8 | 3.1 | 2.29 | 0.56 | 125 |
+| duro, controllo | 33.2 | 5.6 | 2.18 | 0.55 | 97 |
+
+Test pre-registrati (permutazione, una coda, alpha 0.05):
+- H1 (il nutrimento viene selezionato): **no** in entrambi i mondi (p 0.31 e 0.92).
+- H2 (il nutrimento conviene): popolazione leggermente più alta nel mondo abbondante (+1.8,
+  p 0.035), ma mortalità dei piccoli **non** più bassa (p 0.96); nel mondo duro nessun effetto.
+- H3 (il mondo duro favorisce l'accudimento): **no** (p 0.92).
+- Nessuna estinzione in 96 popolazioni.
+
+Lettura: il nutrimento resta un evento raro e casuale (circa 0.5 per 1000 passi di adulto,
+qualche unità di energia contro centinaia raccolte dal cibo) e l'evoluzione non lo spinge.
+Probabili ragioni: il beneficio per il piccolo è piccolo (crescita da ~15 di energia,
+infanzia di ~100 passi), il genitore deve trovarsi adiacente al figlio proprio mentre il
+neurone "nutri" scatta, e la riproduzione asessuata con figli vicini rende la parentela
+quasi uniforme. Come in natura, senza un forte bisogno del piccolo le cure non convengono.
+Cosa cambiare per dare all'accudimento una possibilità: piccoli che **non sanno nutrirsi
+da soli** per un tempo lungo (es. non possono mangiare il cibo selvatico), dote alla
+nascita bassa, figli che seguono il genitore (il senso `parent_*` esiste già).
+
 ## 3. Mappa del codice
 
 ```
