@@ -399,11 +399,9 @@ Dettagli in `results/2026-11-15-develop-runpod/`. Ultime 10 generazioni:
 | crescita + apprendimento solo sui neuroni nuovi | 1093 ± 1027 | 83% | 3/8 | 4.3 → 2.5 |
 | crescita + apprendimento su tutto | 1473 ± 1178 | 82% | 5/8 | 5.4 → 4.1 |
 
-- **Lo sviluppo funziona**: a parità di mondo, cervello e costo, le popolazioni che nascono
-  con circa 6 neuroni dormienti e li svegliano durante la vita fanno meglio del controllo
-  con tutto sveglio dalla nascita (+35%) e diventano agricoltrici in tutti gli 8 seed. La
-  differenza è circa mezza deviazione standard tra seed: chiara come tendenza, da confermare
-  con più seed.
+- *Smentito dalla conferma con 24 seed (sezione successiva):* con 8 seed lo sviluppo
+  sembrava migliore del controllo (+35%, agricoltura in 8 seed su 8); con 24 seed la
+  differenza sparisce.
 - Quasi tutti i neuroni dormienti si svegliano entro la vita (5.3 su 5.8): l'evoluzione usa
   lo sviluppo come **calendario di crescita** guidato dalle difficoltà, non come riserva
   lasciata spenta. Il vantaggio può venire dal risparmio di energia nei primi passi, o dal
@@ -412,6 +410,26 @@ Dettagli in `results/2026-11-15-develop-runpod/`. Ultime 10 generazioni:
   Curiosità: quando l'apprendimento è limitato ai neuroni nuovi l'evoluzione **alza** la
   velocità di apprendimento (0.05 → 0.064), mentre quando agisce su tutto la abbassa a
   0.007: imparare sui neuroni nuovi è tollerato, toccare quelli vecchi è dannoso.
+
+### Tappa C, conferma con 24 seed: il vantaggio NON regge (15/11/2026)
+
+Altri 16 seed (9–24) per `dynamic_develop_50` e `dynamic_awake_cost_50`, uniti agli 8 già
+fatti (pod cpu3c 32 vCPU, ~0.73 $ compreso un primo pod bloccato e terminato). Ultime 10
+generazioni, 24 seed per condizione (`results/2026-11-15-develop-confirm/`):
+
+| condizione | fitness (media ± std) | mediana | agricoltori | vive |
+|---|---|---|---|---|
+| tutti svegli, con costo | 1646 ± 1184 | 1593 | 16/24 | 82% |
+| nasce piccolo e cresce | 1580 ± 1227 | 1273 | 17/24 | 81% |
+
+Differenza −4%, t di Welch −0.19, p (permutazione, una coda) 0.58: **nessuna differenza**.
+Nei primi 8 seed lo sviluppo era avanti (2423 contro 1795), nei 16 nuovi è indietro
+(1159 contro 1572): il vantaggio visto prima era **dovuto al caso**. La variabilità tra seed
+(±1200) è enorme rispetto agli effetti che cerchiamo: per esperimenti di questo tipo servono
+almeno 24–32 seed per condizione, e conviene dichiarare prima quale test si userà.
+
+Lo sviluppo in sé funziona come previsto (circa 5 neuroni dormienti alla nascita, 4 svegliati
+durante la vita) ma, con questi parametri, non dà né un vantaggio né uno svantaggio misurabile.
 
 ## 3. Mappa del codice
 

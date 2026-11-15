@@ -1,0 +1,7 @@
+dynamic_awake_cost_50    seeds 24  fitness    1646 ±   1184 (s.e.   242)  median   1593  farmers 16/24  alive 82%  dormant@birth 0.0 woken 0.0
+dynamic_develop_50       seeds 24  fitness    1580 ±   1227 (s.e.   251)  median   1273  farmers 17/24  alive 81%  dormant@birth 5.3 woken 4.2
+difference develop - awake: -66 (-4%), Welch t = -0.19, one-sided permutation p = 0.575
+seeds 1-8: diff -534; new seeds 9-24: diff 167
+develop wins in 11 of 24 rank positions
+dynamic_awake_cost_50    seeds 1-8 mean   1795 (n=8)   seeds 9-24 mean   1572 (n=16)
+dynamic_develop_50       seeds 1-8 mean   2423 (n=8)   seeds 9-24 mean   1159 (n=16)
