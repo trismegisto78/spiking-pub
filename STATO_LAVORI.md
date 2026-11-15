@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 104, tutti verdi; `ruff` pulito |
+| Test | 110, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -129,6 +129,47 @@ per episodio):
   più seed e `fitness.episodes` maggiore di 1.
 - Domanda aperta e interessante: dove sta il punto di passaggio tra i due esiti (percentuale
   fertile, tempo di maturazione, costo)? È un buon esperimento da fare con `sweep`.
+
+### Varietà di raccolto (15/11/2026)
+
+`crops` in `terrain` definisce più varietà `{name, grow_time, energy, weight}`. Ogni zona
+fertile ne coltiva una, estratta in proporzione a `weight`; la varietà fa parte del terreno
+nascosto e si scopre solo quando il raccolto matura (da maturo è percepito in proporzione
+all'energia). `stimuli.csv` conta i raccolti per varietà.
+
+Esperimento `terrain_50_crops.yaml` (terreno come `terrain_50_easy`):
+
+| varietà | maturazione | energia | peso |
+|---|---|---|---|
+| slow | 30 passi | 15 | 3 |
+| medium | 15 passi | 7 | 3 |
+| fast | 5 passi | 2 | 3 |
+| jackpot | 5 passi | 60 | 0.5 (in circa metà degli episodi c'è una zona) |
+
+Seed 42, 150 generazioni (valori medi per creatura per episodio):
+
+| gen | fitness | vive | semine | avvelenamenti | raccolti slow / medium / fast / jackpot |
+|---|---|---|---|---|---|
+| 0 | 37 | 64% | 27 | 3.1 | 1.3 / 0 / 21.9 / 0 |
+| 50 | 496 | 73% | 54 | 16.4 | 1.9 / 33.2 / 4.6 / 4.3 |
+| 100 | 1288 | 93% | 270 | 7.3 | 18.0 / 132.0 / 93.9 / 0 |
+| 125 | 948 | 98% | 488 | 1.3 | 0.4 / 1.1 / 478.8 / 0.5 |
+| 149 | 827 | 71% | 360 | 18.7 | 1.2 / 10.8 / 321.1 / 3.0 |
+
+Media fitness: 46 nelle prime 10 generazioni, 1062 nelle ultime 10.
+
+- La strategia dominante è la coltura **rapida a ciclo continuo**: centinaia di semine e
+  raccolti per episodio, ciascuno da 2 di energia. Rende più delle varietà lente perché il
+  costo dell'azione è basso (0.05) e il ciclo è brevissimo.
+- Quale varietà viene raccolta dipende molto dalla disposizione dell'episodio (le zone vicine
+  al punto di partenza): le creature evolvono un comportamento generico ("semina dove sei e
+  raccogli subito"), non una preferenza per una varietà.
+- Il jackpot viene raccolto qualche volta (fino a 4 a episodio, cioè 260 di energia), ma non
+  diventa un obiettivo: è troppo raro per essere cercato.
+- Con più varietà sopravvivono molte più creature che con un solo raccolto da 30 passi (70–98%
+  contro 44%): un premio frequente e piccolo è più sicuro.
+- Per rendere interessante la scelta tra varietà: aumentare il costo dell'azione (rende
+  sconveniente il ciclo rapido) o far vedere la varietà prima della maturazione.
 
 ### Griglie più grandi
 

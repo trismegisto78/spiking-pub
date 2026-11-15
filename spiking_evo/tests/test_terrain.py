@@ -36,8 +36,9 @@ def make_world(terrain, n=1, arenas="isolated", wrap=True):
     return w
 
 
-def soil(terrain, fertile):
-    terrain.fertile = np.full(terrain.sown.shape, fertile)
+def soil(terrain, fertile, variety=1):
+    terrain.variety = np.full(terrain.sown.shape, variety if fertile else 0)
+    terrain.fertile = terrain.variety > 0
 
 
 def put(w, x=5, y=5):
@@ -175,3 +176,56 @@ def test_evolution_with_terrain_logs_stats_and_is_chunk_invariant(tiny_config, t
     with open(tmp_path / "tiny/3/stimuli.csv", newline="") as f:
         stats = {r["stat"] for r in csv.DictReader(f)}
     assert {"food.eaten", "hazard.steps_inside", "terrain.planted", "terrain.poisoned"} <= stats
+
+
+CROPS = [
+    {"name": "slow", "grow_time": 30, "energy": 15.0, "weight": 3},
+    {"name": "medium", "grow_time": 15, "energy": 7.0, "weight": 3},
+    {"name": "fast", "grow_time": 5, "energy": 2.0, "weight": 3},
+    {"name": "jackpot", "grow_time": 5, "energy": 60.0, "weight": 0.5},
+]
+
+
+@pytest.mark.parametrize(("variety", "grow", "energy"), [(1, 30, 15.0), (3, 5, 2.0), (4, 5, 60.0)])
+def test_each_variety_has_its_own_time_and_energy(variety, grow, energy):
+    tr = TerrainStimulus(crops=CROPS, action_cost=0.0)
+    w = make_world(tr)
+    soil(tr, True, variety)
+    put(w)
+    ctrl = Scripted(lambda t: t == 0)
+    gains = []
+    for _ in range(grow + 2):
+        before = w.agents.energy[0]
+        w.step(ctrl)
+        gains.append(w.agents.energy[0] - before)
+    assert gains[grow] == energy and sum(gains) == energy
+    assert tr.episode_stats()[f"harvested_{CROPS[variety - 1]['name']}"][0] == 1
+
+
+def test_ripe_crop_sensed_in_proportion_to_energy():
+    ch = ["crop_front", "crop_here"]
+    tr = TerrainStimulus(crops=CROPS, channels=ch, sense_gain=1.0)
+    w = make_world(tr)
+    put(w)
+    soil(tr, True, 3)  # fast: 2 energy -> 2/60 of the jackpot
+    tr.sown[0, 5, 5] = 1
+    tr.t = 100
+    assert tr.sense(w.agents, w)[0, 1] == pytest.approx(2.0 / 60.0)
+    soil(tr, True, 4)
+    assert tr.sense(w.agents, w)[0, 1] == pytest.approx(1.0)
+
+
+def test_varieties_follow_weights_and_jackpot_is_rare():
+    tr = TerrainStimulus(crops=CROPS, fertile_zones=4000, fertile_radius=0.0, shared_layout=False)
+    cfg = WorldConfig(width=100, height=100)
+    w = World(cfg, AgentConfig(), [tr], 2, n_actions=1)
+    w.reset(1, "t")
+    counts = np.bincount(tr.variety[tr.variety > 0], minlength=5)[1:]
+    share = counts / counts.sum()
+    # weights 3:3:3:0.5 -> about 31.6% each and 5.3% jackpot (overlaps keep the max index)
+    assert share[3] < 0.12 and min(share[:3]) > 0.2
+
+
+def test_invalid_crop_rejected():
+    with pytest.raises(ValueError, match="crop 0"):
+        TerrainStimulus(crops=[{"grow_time": 5}])

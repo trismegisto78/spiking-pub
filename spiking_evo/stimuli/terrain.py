@@ -11,6 +11,13 @@ that the agents cannot sense:
   (0 = until the end of the episode). Standing on poison costs ``poison_damage`` per step.
   Negative, and immediate.
 
+Crop varieties: ``crops`` is a list of ``{name, grow_time, energy, weight}``. Each fertile
+zone grows one variety, drawn with probability proportional to ``weight`` (so a variety with
+a small weight is a rare exception). The variety is part of the hidden soil: an agent finds
+out only when the crop ripens, and a ripe crop is sensed in proportion to its energy
+(``energy / max energy``). Without ``crops``, one variety uses ``grow_time`` and
+``harvest_energy``.
+
 Acting always costs ``action_cost``, and does nothing on a cell that already holds a crop
 or poison. The soil itself is invisible; what the agents *can* sense are the consequences:
 ripe crops (``crop_*`` channels) and poison (``poison_*`` channels), with the same
@@ -49,6 +56,7 @@ class TerrainStimulus:
         fertile_radius: float = 4.0,
         grow_time: int = 100,
         harvest_energy: float = 15.0,
+        crops: list[dict] | None = None,
         poison_damage: float = 2.0,
         poison_duration: int = 200,
         action_cost: float = 0.2,
@@ -77,8 +85,21 @@ class TerrainStimulus:
         self.action = action
         self.fertile_zones = fertile_zones
         self.fertile_radius = fertile_radius
-        self.grow_time = grow_time
-        self.harvest_energy = harvest_energy
+        if crops is None:
+            crops = [{"name": "crop", "grow_time": grow_time, "energy": harvest_energy}]
+        allowed = {"name", "grow_time", "energy", "weight"}
+        for i, c in enumerate(crops):
+            if set(c) - allowed or "grow_time" not in c or "energy" not in c:
+                raise ValueError(f"crop {i}: needs grow_time and energy; keys {sorted(allowed)}")
+            if c["grow_time"] < 0 or c.get("weight", 1.0) <= 0:
+                raise ValueError(f"crop {i}: grow_time must be >= 0 and weight > 0")
+        self.crop_names = [str(c.get("name", f"crop{i}")) for i, c in enumerate(crops)]
+        # Index 0 = barren soil; varieties are 1..V.
+        self._grow = np.array([0] + [int(c["grow_time"]) for c in crops], dtype=np.int64)
+        self._energy = np.array([0.0] + [float(c["energy"]) for c in crops])
+        w = np.array([float(c.get("weight", 1.0)) for c in crops])
+        self._cum_weights = np.cumsum(w / w.sum())
+        self._max_energy = max(float(self._energy.max()), 1e-9)
         self.poison_damage = poison_damage
         self.poison_duration = poison_duration
         self.action_cost = action_cost
@@ -111,16 +132,27 @@ class TerrainStimulus:
         else:
             cy = world.per_arena(lambda s: rng.integers(h, size=s), k)
             cx = world.per_arena(lambda s: rng.integers(w, size=s), k)
+        # Variety of every zone (no extra random draw when there is only one).
+        nv = len(self.crop_names)
+        if nv == 1:
+            var = np.ones(cy.shape)
+        else:
+            if self.shared_layout:
+                u = np.broadcast_to(rng.random(k), cy.shape)
+            else:
+                u = world.per_arena(rng.random, k)
+            var = np.searchsorted(self._cum_weights, u, side="right").clip(max=nv - 1) + 1.0
         oy, ox = disk_offsets(self.fertile_radius)
         if self.shared_layout:
             soil = np.zeros((1, h, w))
-            stamp_disks(soil, np.zeros(k, int), cy[0], cx[0], np.ones(k), oy, ox, world)
-            self.fertile = np.broadcast_to(soil > 0, (n, h, w))
+            stamp_disks(soil, np.zeros(k, int), cy[0], cx[0], var[0], oy, ox, world)
+            self.variety = np.broadcast_to(soil.astype(np.int64), (n, h, w))
         else:
             soil = np.zeros((n, h, w))
             arena = np.broadcast_to(np.arange(n)[:, None], cy.shape).reshape(-1)
-            stamp_disks(soil, arena, cy.reshape(-1), cx.reshape(-1), np.ones(n * k), oy, ox, world)
-            self.fertile = soil > 0
+            stamp_disks(soil, arena, cy.reshape(-1), cx.reshape(-1), var.reshape(-1), oy, ox, world)
+            self.variety = soil.astype(np.int64)
+        self.fertile = self.variety > 0
         # Planting time + 1 (0 = no crop): 0 is also what cells outside a walled grid read.
         self.sown = np.zeros((n, h, w), dtype=np.int64)
         self.poison_until = np.zeros((n, h, w), dtype=np.int64)  # poisoned while t < value
@@ -128,6 +160,8 @@ class TerrainStimulus:
         a = world.n_agents
         self.planted = np.zeros(a)
         self.harvested = np.zeros(a)
+        self.harvest_energy_total = np.zeros(a)
+        self.harvested_by_variety = np.zeros((a, len(self.crop_names)))
         self.poisoned = np.zeros(a)
         self.actions = np.zeros(a)
         self.poison_steps = np.zeros(a)
@@ -142,7 +176,9 @@ class TerrainStimulus:
             if dirs:
                 if kind == "crop":
                     raw = extract_patch(self.sown, agents, world, self._offsets)
-                    patch = (raw > 0) & (t - (raw - 1) >= self.grow_time)
+                    var = extract_patch(self.variety, agents, world, self._offsets)
+                    ripe = (raw > 0) & (t - (raw - 1) >= self._grow[var])
+                    patch = ripe * (self._energy[var] / self._max_energy)
                 else:
                     raw = extract_patch(self.poison_until, agents, world, self._offsets)
                     patch = raw > t
@@ -161,11 +197,15 @@ class TerrainStimulus:
         delta = np.zeros(len(agents))
 
         # 1. Harvest ripe crops (one harvester per cell in shared arenas).
-        ripe = alive & self._cell_state(agents, "crop").astype(bool)
+        ripe = alive & (self._cell_state(agents, "crop") > 0)
         idx = self._one_per_cell(np.flatnonzero(ripe), agents, world)
         if idx.size:
-            delta[idx] += self.harvest_energy
+            var = self.variety[a[idx], y[idx], x[idx]]
+            gain = self._energy[var]
+            delta[idx] += gain
             self.harvested[idx] += 1
+            self.harvest_energy_total[idx] += gain
+            np.add.at(self.harvested_by_variety, (idx, var - 1), 1)
             self.sown[a[idx], y[idx], x[idx]] = 0
 
         # 2. Act on the current cell.
@@ -194,6 +234,15 @@ class TerrainStimulus:
             "actions": self.actions.copy(),
             "planted": self.planted.copy(),
             "harvested": self.harvested.copy(),
+            "harvest_energy": self.harvest_energy_total.copy(),
+            **(
+                {
+                    f"harvested_{name}": self.harvested_by_variety[:, i].copy()
+                    for i, name in enumerate(self.crop_names)
+                }
+                if len(self.crop_names) > 1
+                else {}
+            ),
             "poisoned": self.poisoned.copy(),
             "poison_steps": self.poison_steps.copy(),
         }
@@ -203,7 +252,9 @@ class TerrainStimulus:
         a, y, x = agents.arena, agents.y, agents.x
         if kind == "crop":
             p = self.sown[a, y, x]
-            return ((p > 0) & (self.t - (p - 1) >= self.grow_time)).astype(np.float64)
+            var = self.variety[a, y, x]
+            ripe = (p > 0) & (self.t - (p - 1) >= self._grow[var])
+            return ripe * (self._energy[var] / self._max_energy)
         return (self.poison_until[a, y, x] > self.t).astype(np.float64)
 
     @staticmethod
