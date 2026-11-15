@@ -140,6 +140,7 @@ class Config:
     fitness: FitnessConfig = field(default_factory=FitnessConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)
     # Environment changes during a run. Each phase: {from_generation, name, set}; ``set`` is
-    # merged into this config from that generation on (lists such as ``stimuli`` are
-    # replaced as a whole). The population carries over: genomes are adapted to new senses.
+    # merged into the previous phase's config from that generation on (phases accumulate;
+    # lists such as ``stimuli`` are replaced as a whole). The population carries over:
+    # genomes are adapted to new senses.
     phases: list[dict[str, Any]] = field(default_factory=list)

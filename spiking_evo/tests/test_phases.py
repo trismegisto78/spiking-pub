@@ -23,6 +23,11 @@ def test_phase_configs_and_validation(tiny_config):
     evo = Evolution(phased(tiny_config))
     assert [(s, n) for s, n, _ in evo.phases] == [(0, "base"), (2, "hazards"), (4, "farming")]
     assert [evo.phase_at(g) for g in range(6)] == [0, 0, 1, 1, 2, 2]
+    # phases accumulate: a later phase keeps what an earlier one set
+    cfg = phased(tiny_config)
+    cfg.phases.append({"from_generation": 5, "name": "later", "set": {"agent": {"move_cost": 0.5}}})
+    later = Evolution(cfg).phases[-1][2]
+    assert later.network.action_outputs == 1 and later.agent.move_cost == 0.5
     with pytest.raises(ConfigError, match="increase"):
         config_from_dict({"phases": [{"from_generation": 3}, {"from_generation": 3}]})
     with pytest.raises(ConfigError, match="cannot change seed"):

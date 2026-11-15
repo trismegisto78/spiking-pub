@@ -84,6 +84,7 @@ def phase_configs(cfg: Config) -> list[tuple[int, str, Config]]:
     base = config_to_dict(cfg)
     base.pop("phases")
     out = [(0, "base", _build(Config, base, ""))]
+    prev = base
     last = 0
     for i, ph in enumerate(cfg.phases):
         where = f"phases[{i}]"
@@ -106,10 +107,11 @@ def phase_configs(cfg: Config) -> list[tuple[int, str, Config]]:
                     f"{where}.set: cannot change {forbidden}"
                     + (" generations/population" if forbidden == "genetics" else "")
                 )
-        merged = _merge(base, changes)
+        merged = _merge(prev, changes)  # cumulative: on top of the previous phase
         phase_cfg = _build(Config, merged, f"{where}.set")
         validate(phase_cfg)
         out.append((start, str(ph.get("name", f"phase{i + 1}")), phase_cfg))
+        prev = merged
     return out
 
 
