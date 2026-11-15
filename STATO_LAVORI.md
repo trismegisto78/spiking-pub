@@ -11,10 +11,10 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 |---|---|
 | Milestone 1 (baseline) | **completo**, criterio di successo superato |
 | Ottimizzazione per Runpod (CPU) | **completa**, verificata in locale con Docker |
-| Milestone 2 (ambiente ricco) | da iniziare |
+| Milestone 2 (ambiente ricco) | **in corso**: `HazardStimulus` fatto, `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 81, tutti verdi; `ruff` pulito |
+| Test | 91, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -62,6 +62,26 @@ comportamentale previsto dal milestone 2 (vedi sezione 7).
 Un baseline da 300 generazioni dura circa 6.5 minuti su un core.
 
 ---
+
+### Milestone 2, primo passo: pericoli su griglia 50×50 (15/11/2026)
+
+Nuovo stimolo `hazard` (`stimuli/hazard.py`): zone circolari fisse che tolgono energia a ogni
+passo a chi ci sta dentro; percepite con canali propri (fronte/sinistra/destra/qui), separati
+da quelli del cibo. Esperimenti: `food_hazard_50.yaml` (danno 1) e `food_hazard_50_d3.yaml`
+(danno 3), griglia 50×50, 95 cibi (stessa densità del baseline), 8 zone da raggio 2.5 (~7%
+della griglia). 100 generazioni, seed 42, ~2 minuti con `--workers 4`.
+
+Test comportamentale fatto a mano: genoma migliore della generazione 99 su 20 episodi nuovi;
+"cieco ai pericoli" = stessa rete con i canali del pericolo azzerati.
+
+| esperimento | fitness media gen 0 → 99 | tempo nei pericoli (evoluto) | tempo nei pericoli (cieco) | energia evoluto / cieco |
+|---|---|---|---|---|
+| danno 1 | 4.0 → 351.9 | 4.1% | 6.2% | 372 / 359 |
+| danno 3 | → 225.9 | **1.2%** | 6.0% | **229 / 74** |
+
+Con danno 1 il pericolo costa poco e l'evitamento è debole; con danno 3 gli agenti evitano le
+zone (5 volte meno tempo dentro) e, se privati del senso del pericolo, perdono due terzi
+dell'energia. È un singolo seed: va confermato con uno `sweep` su più seed.
 
 ## 3. Mappa del codice
 
@@ -238,9 +258,8 @@ Ordine consigliato, coerente con la spec ("milestone 1 per intero prima di tocca
 Criterio della spec: gli agenti distinguono zone di cibo e pericolo, misurato con un test
 comportamentale.
 
-1. **`stimuli/hazard.py` → `HazardStimulus`**: celle o zone che sottraggono energia. Canali
-   sensoriali egocentrici come il cibo (si può riusare `sector_kernels` di `food.py`).
-   `interact` ritorna un delta negativo.
+1. ~~`stimuli/hazard.py` → `HazardStimulus`~~ **fatto** (vedi sezione 2). La percezione
+   egocentrica è ora la funzione condivisa `egocentric_sense` in `food.py`.
 2. **`stimuli/food_patch.py` → `FoodPatchStimulus`**: cibo raggruppato in zone (centri casuali,
    distribuzione gaussiana attorno ai centri), rigenerazione dentro la zona.
 3. Regole da rispettare per entrambi:

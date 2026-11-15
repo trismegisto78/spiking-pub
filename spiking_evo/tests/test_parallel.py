@@ -17,7 +17,10 @@ def random_everywhere(tiny_config, encoder):
     return tiny_config(
         world={"same_start": False},
         agent={"initial_energy": 2.0},
-        stimuli=[{"type": "food", "count": 12, "regrow_rate": 0.1, "shared_layout": False}],
+        stimuli=[
+            {"type": "food", "count": 12, "regrow_rate": 0.1, "shared_layout": False},
+            {"type": "hazard", "count": 2, "radius": 1.5, "shared_layout": False},
+        ],
         network={"encoder": encoder},
         fitness={"episodes": 2},
     )

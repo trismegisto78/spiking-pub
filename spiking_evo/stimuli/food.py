@@ -55,6 +55,39 @@ def sector_kernels(radius: int, channels: tuple[str, ...]) -> np.ndarray:
     return kernels
 
 
+def egocentric_sense(
+    grid: np.ndarray,
+    agents: Agents,
+    world: World,
+    channels: list[str],
+    dir_channels: tuple[str, ...],
+    kernels: np.ndarray,
+    offsets: np.ndarray,
+    gain: float,
+) -> np.ndarray:
+    """Shared sensing for grid-based stimuli: directional sectors + ``here``.
+
+    ``grid`` is (arenas, H, W) with intensities (counts or 0/1).
+    """
+    out = np.zeros((len(agents), len(channels)))
+    if dir_channels:
+        ys = agents.y[:, None] + offsets
+        xs = agents.x[:, None] + offsets
+        valid = world.in_bounds(xs[:, None, :], ys[:, :, None])
+        if world.wrap:
+            ys, xs = ys % world.height, xs % world.width
+        else:
+            ys, xs = np.clip(ys, 0, world.height - 1), np.clip(xs, 0, world.width - 1)
+        patch = grid[agents.arena[:, None, None], ys[:, :, None], xs[:, None, :]] * valid
+        raw = np.einsum("aij,acij->ac", patch, kernels[agents.heading])
+        vals = 1.0 - np.exp(-gain * raw)
+        for j, c in enumerate(dir_channels):
+            out[:, channels.index(c)] = vals[:, j]
+    if "here" in channels:
+        out[:, channels.index("here")] = grid[agents.arena, agents.y, agents.x] > 0
+    return out
+
+
 @register("food")
 class FoodStimulus:
     def __init__(
@@ -118,28 +151,16 @@ class FoodStimulus:
         np.add.at(self.grid, (self._arena_of_item[regrow], ny, nx), 1)
 
     def sense(self, agents: Agents, world: World) -> np.ndarray:
-        out = np.zeros((len(agents), len(self.channels)))
-        if self._dir_channels:
-            ys = agents.y[:, None] + self._offsets
-            xs = agents.x[:, None] + self._offsets
-            valid = world.in_bounds(xs[:, None, :], ys[:, :, None])
-            ys, xs = (
-                (ys % world.height, xs % world.width)
-                if world.wrap
-                else (
-                    np.clip(ys, 0, world.height - 1),
-                    np.clip(xs, 0, world.width - 1),
-                )
-            )
-            patch = self.grid[agents.arena[:, None, None], ys[:, :, None], xs[:, None, :]] * valid
-            raw = np.einsum("aij,acij->ac", patch, self._kernels[agents.heading])
-            vals = 1.0 - np.exp(-self.sense_gain * raw)
-            for j, c in enumerate(self._dir_channels):
-                out[:, self.channels.index(c)] = vals[:, j]
-        if "here" in self.channels:
-            here = self.grid[agents.arena, agents.y, agents.x] > 0
-            out[:, self.channels.index("here")] = here
-        return out
+        return egocentric_sense(
+            self.grid,
+            agents,
+            world,
+            self.channels,
+            self._dir_channels,
+            self._kernels,
+            self._offsets,
+            self.sense_gain,
+        )
 
     def interact(self, agents: Agents, world: World) -> np.ndarray:
         delta = np.zeros(len(agents))
