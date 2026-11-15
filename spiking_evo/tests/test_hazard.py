@@ -17,7 +17,7 @@ def make_world(stimuli, n=1, wrap=True, size=11):
 
 
 def single_cell(hz, w, x, y):
-    hz.grid[:] = 0.0
+    hz.grid = np.zeros((w.n_arenas, w.height, w.width))
     hz.grid[:, y, x] = 1.0
 
 
@@ -102,3 +102,18 @@ def test_standing_in_hazard_drains_energy_over_episode():
     res = w.run_episode(Still(), 0, "ep")
     assert res.energy_gained[0] == -50.0  # initial energy 50, dies after 50 steps
     assert not res.alive[0]
+
+
+def test_disk_stamp_matches_distance_definition():
+    for wrap in (True, False):
+        hz = HazardStimulus(count=3, radius=2.5, shared_layout=False)
+        make_world([hz], n=2, wrap=wrap, size=9)
+        yy, xx = np.mgrid[0:9, 0:9]
+        for a in range(2):
+            expected = np.zeros((9, 9), bool)
+            for cx, cy in hz.centers[a]:
+                dy, dx = np.abs(yy - cy), np.abs(xx - cx)
+                if wrap:
+                    dy, dx = np.minimum(dy, 9 - dy), np.minimum(dx, 9 - dx)
+                expected |= dx**2 + dy**2 <= 2.5**2
+            assert np.array_equal(hz.grid[a] > 0, expected)

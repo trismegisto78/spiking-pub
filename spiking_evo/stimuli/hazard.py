@@ -60,13 +60,34 @@ class HazardStimulus:
             cy = world.per_arena(lambda s: rng.integers(h, size=s), self.count)
             cx = world.per_arena(lambda s: rng.integers(w, size=s), self.count)
         self.centers = np.stack([cx, cy], axis=-1)  # (arenas, count, 2) as (x, y)
-        yy, xx = np.mgrid[0:h, 0:w]
-        dy = np.abs(yy[None, None] - cy[:, :, None, None])
-        dx = np.abs(xx[None, None] - cx[:, :, None, None])
+        # Stamp a precomputed disk of offsets around every centre: memory is
+        # O(arenas * count * disk) instead of O(arenas * count * H * W).
+        r = int(np.floor(self.radius))
+        oy, ox = np.mgrid[-r : r + 1, -r : r + 1]
+        disk = (ox**2 + oy**2) <= self.radius**2
+        oy, ox = oy[disk], ox[disk]
+        if self.shared_layout:
+            # Same zones everywhere: one grid shared (read-only view) by all arenas.
+            grid = np.zeros((1, h, w))
+            self._stamp(grid, np.zeros(self.count, int), cy[0], cx[0], oy, ox, world)
+            self.grid = np.broadcast_to(grid, (n, h, w))
+        else:
+            grid = np.zeros((n, h, w))
+            arena = np.broadcast_to(np.arange(n)[:, None], cy.shape).reshape(-1)
+            self._stamp(grid, arena, cy.reshape(-1), cx.reshape(-1), oy, ox, world)
+            self.grid = grid
+
+    @staticmethod
+    def _stamp(grid, arena, cy, cx, oy, ox, world) -> None:
+        ys = cy[:, None] + oy[None, :]
+        xs = cx[:, None] + ox[None, :]
         if world.wrap:
-            dy, dx = np.minimum(dy, h - dy), np.minimum(dx, w - dx)
-        inside = (dx**2 + dy**2) <= self.radius**2  # (arenas, count, H, W)
-        self.grid = inside.any(axis=1).astype(np.float64)  # (arenas, H, W), 1 = hazard
+            ys, xs = ys % world.height, xs % world.width
+            keep = np.ones(ys.shape, dtype=bool)
+        else:
+            keep = (ys >= 0) & (ys < world.height) & (xs >= 0) & (xs < world.width)
+        a = np.broadcast_to(arena[:, None], ys.shape)
+        grid[a[keep], ys[keep], xs[keep]] = 1.0
 
     def step(self, world: World, t: int) -> None:
         pass  # static zones

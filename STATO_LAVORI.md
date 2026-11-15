@@ -83,6 +83,29 @@ Con danno 1 il pericolo costa poco e l'evitamento è debole; con danno 3 gli age
 zone (5 volte meno tempo dentro) e, se privati del senso del pericolo, perdono due terzi
 dell'energia. È un singolo seed: va confermato con uno `sweep` su più seed.
 
+### Griglie più grandi
+
+La griglia potrà crescere ancora. Misure con 200 agenti e la stessa densità di cibo e pericoli
+del 50×50 (1 processo, dopo le correzioni del 15/11/2026):
+
+| griglia | tempo per passo | RAM di picco |
+|---|---|---|
+| 50×50 | 1.8 ms | 59 MB |
+| 100×100 | 3.0 ms | 74 MB |
+| 200×200 | 4.0 ms | 134 MB |
+
+Prima delle correzioni il 100×100 usava 2.5 GB e il 200×200 esauriva la memoria (zone di
+pericolo costruite con array arene × zone × celle; cibo mangiato cercato in tutte le arene).
+
+Cosa tenere presente salendo ancora:
+- la percezione è locale (raggio fisso), quindi il costo per passo cresce solo col numero di
+  oggetti (più cibo da far ricrescere), non con l'area;
+- la memoria cresce con agenti × celle in modalità `isolated` (griglia del cibo e celle
+  visitate per ogni agente): circa 0.45 GB a 500×500, circa 1.8 GB a 1000×1000. Oltre
+  conviene ridurre il tipo dei dati delle griglie o passare a strutture sparse;
+- su griglie grandi un episodio da 1000 passi copre una parte piccola del mondo: valuta di
+  aumentare `world.steps_per_episode` e `sense_radius` insieme alla griglia.
+
 ## 3. Mappa del codice
 
 ```

@@ -176,9 +176,13 @@ class FoodStimulus:
             eaters = eaters[first]
         delta[eaters] = amount[eaters] * self.energy_value
         self.grid[agents.arena[eaters], agents.y[eaters], agents.x[eaters]] = 0
-        # Items whose cell was just emptied have been eaten.
-        eaten = self.present & (self.grid[self._arena_of_item, self.item_y, self.item_x] == 0)
-        self.present &= ~eaten
+        # The items lying on the eaters' cells are gone. Only the eaters' arenas are checked,
+        # so the cost does not grow with the size of the grid.
+        ar = agents.arena[eaters]
+        on_cell = (self.item_x[ar] == agents.x[eaters, None]) & (
+            self.item_y[ar] == agents.y[eaters, None]
+        )
+        np.logical_and.at(self.present, ar, ~on_cell)
         return delta
 
     # -- helpers -----------------------------------------------------------------
