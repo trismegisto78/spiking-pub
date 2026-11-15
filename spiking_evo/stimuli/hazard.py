@@ -9,6 +9,9 @@ gets one level at random, and where zones overlap the strongest applies. Sensing
 egocentric scheme as food on separate channels, scaled by danger: a cell contributes
 ``damage / max(levels)``, so a stronger zone "smells" stronger; ``here`` is the scaled
 damage of the agent's own cell.
+
+``relocate_every`` (steps, 0 = never) moves all zones to new random places during the
+episode: a world that changes within an agent's life.
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ class HazardStimulus:
         sense_gain: float = 0.3,
         channels: list[str] | tuple[str, ...] = ("front", "left", "right", "here"),
         shared_layout: bool = True,
+        relocate_every: int = 0,
         name: str = "hazard",
     ) -> None:
         bad = [c for c in channels if c not in ALL_CHANNELS]
@@ -69,6 +73,9 @@ class HazardStimulus:
         levels = [float(d) for d in (damage if isinstance(damage, list | tuple) else [damage])]
         if count < 0 or radius < 0 or not levels or min(levels) < 0 or sense_radius < 1:
             raise ValueError("invalid hazard parameters")
+        if relocate_every < 0:
+            raise ValueError("relocate_every must be >= 0")
+        self.relocate_every = relocate_every
         self.levels = np.array(levels)
         self.max_damage = max(float(self.levels.max()), 1e-9)
         self.name = name
@@ -85,6 +92,10 @@ class HazardStimulus:
     def reset(self, world: World, rng: np.random.Generator) -> None:
         self.steps_inside = np.zeros(world.n_agents, dtype=np.int64)
         self.damage_taken = np.zeros(world.n_agents)
+        self.rng = rng
+        self._layout(world, rng)
+
+    def _layout(self, world: World, rng: np.random.Generator) -> None:
         h, w, n = world.height, world.width, world.n_arenas
         if self.shared_layout:
             cy = np.broadcast_to(rng.integers(h, size=self.count), (n, self.count))
@@ -130,7 +141,8 @@ class HazardStimulus:
             self._sense_grid = grid / self.max_damage
 
     def step(self, world: World, t: int) -> None:
-        pass  # static zones
+        if self.relocate_every and t > 0 and t % self.relocate_every == 0:
+            self._layout(world, self.rng)
 
     def sense(self, agents: Agents, world: World) -> np.ndarray:
         return egocentric_sense(

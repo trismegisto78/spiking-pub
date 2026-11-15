@@ -166,6 +166,7 @@ def validate(cfg: Config) -> None:
         (g.encoding == "direct", "genetics.encoding: only 'direct' is implemented (milestone 1)"),
         (cfg.fitness.episodes >= 1, "fitness.episodes must be >= 1"),
         (n.action_outputs >= 0, "network.action_outputs must be >= 0"),
+        (n.plasticity.reward in ("energy", "stimuli"), "network.plasticity.reward: energy|stimuli"),
         (len(cfg.stimuli) >= 1, "at least one stimulus is required"),
         (all("type" in s for s in cfg.stimuli), "every stimulus needs a 'type'"),
     ]

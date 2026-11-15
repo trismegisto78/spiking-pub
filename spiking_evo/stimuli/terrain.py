@@ -18,6 +18,10 @@ out only when the crop ripens, and a ripe crop is sensed in proportion to its en
 (``energy / max energy``). Without ``crops``, one variety uses ``grow_time`` and
 ``harvest_energy``.
 
+``relocate_every`` (steps, 0 = never) redraws the hidden soil during the episode: fertile
+zones and their varieties move, crops on cells whose soil changed are lost. What an agent
+learned about where to farm stops being true.
+
 Acting always costs ``action_cost``, and does nothing on a cell that already holds a crop
 or poison. The soil itself is invisible; what the agents *can* sense are the consequences:
 ripe crops (``crop_*`` channels) and poison (``poison_*`` channels), with the same
@@ -78,6 +82,7 @@ class TerrainStimulus:
             "poison_here",
         ),  # fmt: skip
         shared_layout: bool = True,
+        relocate_every: int = 0,
         name: str = "terrain",
     ) -> None:
         bad = [c for c in channels if c not in ALL_CHANNELS]
@@ -85,6 +90,9 @@ class TerrainStimulus:
             raise ValueError(f"terrain channels must be distinct values of {ALL_CHANNELS}")
         if action < 0 or grow_time < 0 or poison_duration < 0 or sense_radius < 1:
             raise ValueError("invalid terrain parameters")
+        if relocate_every < 0:
+            raise ValueError("relocate_every must be >= 0")
+        self.relocate_every = relocate_every
         self.name = name
         self.channels = list(channels)
         self.action = action
@@ -129,6 +137,28 @@ class TerrainStimulus:
                 f"terrain uses action {self.action}: set network.action_outputs >= "
                 f"{self.action + 1}"
             )
+        self.rng = rng
+        self._layout(world, rng)
+        h, w, n = world.height, world.width, world.n_arenas
+        # Planting time + 1 (0 = no crop): 0 is also what cells outside a walled grid read.
+        # Crop growth is measured on a "growth clock" g that advances by the seasonal
+        # growth rate each step (g == t without seasons). sown = g at planting + 1.
+        self.sown = np.zeros((n, h, w))
+        self.g = 0.0
+        self._rate = 1.0
+        self.poison_until = np.zeros((n, h, w), dtype=np.int64)  # poisoned while t < value
+        self.t = 0
+        a = world.n_agents
+        self.planted = np.zeros(a)
+        self.harvested = np.zeros(a)
+        self.harvest_energy_total = np.zeros(a)
+        self.harvested_by_variety = np.zeros((a, len(self.crop_names)))
+        self.poisoned = np.zeros(a)
+        self.actions = np.zeros(a)
+        self.poison_steps = np.zeros(a)
+
+    def _layout(self, world: World, rng: np.random.Generator) -> None:
+        """Draw the hidden soil: fertile zones and their crop varieties."""
         h, w, n = world.height, world.width, world.n_arenas
         k = self.fertile_zones
         if self.shared_layout:
@@ -158,24 +188,12 @@ class TerrainStimulus:
             stamp_disks(soil, arena, cy.reshape(-1), cx.reshape(-1), var.reshape(-1), oy, ox, world)
             self.variety = soil.astype(np.int64)
         self.fertile = self.variety > 0
-        # Planting time + 1 (0 = no crop): 0 is also what cells outside a walled grid read.
-        # Crop growth is measured on a "growth clock" g that advances by the seasonal
-        # growth rate each step (g == t without seasons). sown = g at planting + 1.
-        self.sown = np.zeros((n, h, w))
-        self.g = 0.0
-        self._rate = 1.0
-        self.poison_until = np.zeros((n, h, w), dtype=np.int64)  # poisoned while t < value
-        self.t = 0
-        a = world.n_agents
-        self.planted = np.zeros(a)
-        self.harvested = np.zeros(a)
-        self.harvest_energy_total = np.zeros(a)
-        self.harvested_by_variety = np.zeros((a, len(self.crop_names)))
-        self.poisoned = np.zeros(a)
-        self.actions = np.zeros(a)
-        self.poison_steps = np.zeros(a)
 
     def step(self, world: World, t: int) -> None:
+        if self.relocate_every and t > 0 and t % self.relocate_every == 0:
+            old = self.variety
+            self._layout(world, self.rng)
+            self.sown = np.where(self.variety == old, self.sown, 0.0)  # crops on changed soil die
         if t > 0:
             self.g += self._rate
         self._rate = seasonal(self, "growth_rate")

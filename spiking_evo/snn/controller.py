@@ -119,13 +119,21 @@ class SNNController:
             return forward, turn
         return forward, turn, rates[:, N_MOTOR_OUTPUTS:] > self.action_threshold_hz
 
-    def feedback(self, energy_delta: np.ndarray, alive: np.ndarray) -> None:
+    def feedback(
+        self,
+        energy_delta: np.ndarray,
+        alive: np.ndarray,
+        stimulus_delta: np.ndarray | None = None,
+    ) -> None:
         """Reward-modulated plasticity: the energy change of the last world step, compared
         with its running average (a reward prediction error), drives learning."""
         p = self.plasticity
         if p is None:
             return
-        r = energy_delta / p.reward_scale
+        delta = (
+            stimulus_delta if p.reward == "stimuli" and stimulus_delta is not None else energy_delta
+        )
+        r = delta / p.reward_scale
         signal = np.clip(r - self._reward_baseline, -1.0, 1.0) * alive
         self._reward_baseline += (r - self._reward_baseline) / p.reward_baseline_steps
         self.network.apply_reward(signal)

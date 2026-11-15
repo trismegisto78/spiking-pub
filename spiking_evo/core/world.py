@@ -10,8 +10,10 @@ and a list of objects implementing ``stimuli.base.Stimulus``. Order of one world
     5. every stimulus acts on the agents         (Stimulus.interact -> energy deltas)
     6. metabolic cost is paid, agents with no energy left die (if enabled)
 
-After each step a controller that defines ``feedback(energy_delta, alive)`` receives the
-energy change of every agent: the reward signal for learning during life (plasticity).
+After each step a controller that defines ``feedback(energy_delta, alive, stimulus_delta)``
+receives the
+energy change of every agent (total, and the part due to stimuli only): the reward signal for
+learning during life (plasticity).
 
 Generic actions (``network.action_outputs``) are stored in ``agents.action`` before step 5;
 the core gives them no meaning, stimuli decide what they do. This is the one core extension
@@ -159,6 +161,7 @@ class World:
         a, cfg = self.agents, self.agent_cfg
         t = self.clock.tick
         energy_before = a.energy.copy()
+        gained_before = a.energy_gained.copy()
         alive_before = a.alive.copy()
         for stim in self.stimuli:
             stim.step(self, t)
@@ -193,7 +196,7 @@ class World:
         # change of this step (the core does not interpret it).
         feedback = getattr(controller, "feedback", None)
         if feedback is not None:
-            feedback(a.energy - energy_before, alive_before)
+            feedback(a.energy - energy_before, alive_before, a.energy_gained - gained_before)
         self.clock.advance()
 
     def run_episode(self, controller: Controller, seed: int, *keys: int | str) -> EpisodeResult:

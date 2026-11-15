@@ -55,6 +55,10 @@ class PlasticityConfig:
     tau_trace_ms: float = 20.0  # pre/post spike traces of the STDP window
     tau_eligibility_ms: float = 500.0  # how long a spike pairing stays eligible for reward
     a_minus_ratio: float = 1.05  # depression amplitude relative to potentiation
+    # Reward signal: "energy" = total energy change of the step (includes the constant cost
+    # of living and moving); "stimuli" = only what stimuli gave or took (food, crops,
+    # hazards, poison...), a cleaner signal.
+    reward: str = "energy"
     reward_scale: float = 5.0  # energy change counted as a reward of 1
     reward_baseline_steps: float = 50.0  # running average the reward is compared with
     init_learning_rate: float = 0.05  # learning rate of the initial population

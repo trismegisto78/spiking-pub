@@ -1,0 +1,76 @@
+# Plasticity test: zones fixed for the whole life, brain learns during life (reward from stimuli only).
+# Otherwise identical to terrain_50_crops (food, hazards, farmable terrain with crop varieties).
+experiment: static_plastic_50
+seed: 42
+world:
+  width: 50
+  height: 50
+  steps_per_episode: 1000
+stimuli:
+- type: food
+  count: 95
+  regrow_rate: 0.01
+- type: hazard
+  count: 8
+  radius: 2.5
+  damage:
+  - 1.0
+  - 3.0
+  - 6.0
+- type: terrain
+  action: 0
+  fertile_zones: 20
+  fertile_radius: 5.0
+  crops:
+  - name: slow
+    grow_time: 30
+    energy: 15.0
+    weight: 3
+  - name: medium
+    grow_time: 15
+    energy: 7.0
+    weight: 3
+  - name: fast
+    grow_time: 5
+    energy: 2.0
+    weight: 3
+  - name: jackpot
+    grow_time: 5
+    energy: 60.0
+    weight: 0.5
+  poison_damage: 2.0
+  poison_duration: 200
+  action_cost: 0.05
+network:
+  encoder: rate
+  hidden_max: 30
+  dt_ms: 1.0
+  action_outputs: 1
+  action_threshold_hz: 50.0
+  neuron:
+    tau_m: 20.0
+    v_thresh: 1.0
+    v_reset: 0.0
+    refractory_ms: 2.0
+  plasticity:
+    enabled: true
+    reward: stimuli
+genetics:
+  population: 200
+  generations: 300
+  tournament_size: 3
+  elitism: 5
+  mutation:
+    weight: 0.1
+    threshold: 0.05
+    add_synapse: 0.02
+    remove_synapse: 0.01
+fitness:
+  energy: 1.0
+  firing_penalty:
+    target_rate_hz: 20
+    weight: 0.5
+  silence_penalty:
+    weight: 0.5
+  exploration:
+    weight: 0.0
