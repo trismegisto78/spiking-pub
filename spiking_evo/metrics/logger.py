@@ -91,6 +91,8 @@ class RunLogger:
         """Create the run directory. When resuming, rows from ``first_generation`` on are
         dropped so the CSV files stay consistent with the checkpoint."""
         (self.dir / "snapshots").mkdir(parents=True, exist_ok=True)
+        if first_generation == 0 and (self.dir / "phases.csv").exists():
+            (self.dir / "phases.csv").unlink()
         repo = Path(__file__).resolve().parent
         extra = {"_run": {**git_info(repo), "resumed_from_generation": first_generation or None}}
         (self.dir / "config.yaml").write_text(dump_config(self.cfg, extra), encoding="utf-8")
@@ -129,19 +131,34 @@ class RunLogger:
                 },
             )
 
+    def log_phase(self, generation: int, name: str, input_names: list[str]) -> None:
+        path = self.dir / "phases.csv"
+        new = not path.exists()
+        with path.open("a", newline="") as f:
+            w = csv.writer(f)
+            if new:
+                w.writerow(["generation", "phase", "inputs"])
+            w.writerow([generation, name, " ".join(input_names)])
+
     def snapshot(self, generation: int, genome: dict[str, Any], fitness: float) -> Path:
         path = self.dir / "snapshots" / f"gen_{generation:04d}.json"
         payload = {"generation": generation, "fitness": fitness, "genome": genome}
         _atomic_write(path, json.dumps(payload))
         return path
 
-    def checkpoint(self, next_generation: int, genomes: list[dict[str, Any]]) -> None:
+    def checkpoint(
+        self,
+        next_generation: int,
+        genomes: list[dict[str, Any]],
+        input_names: list[str] | None = None,
+    ) -> None:
         payload = {
             "format": "spiking_evo.checkpoint",
             "version": 1,
             "experiment": self.cfg.experiment,
             "seed": self.cfg.seed,
             "next_generation": next_generation,
+            "input_names": input_names,
             "genomes": genomes,
         }
         _atomic_write(self.checkpoint_path, json.dumps(payload))

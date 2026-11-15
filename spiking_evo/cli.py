@@ -60,7 +60,7 @@ def cmd_run(args) -> int:
                 flush=True,
             )
 
-    evo.run(out_root=out_root, resume=args.resume, progress=progress)
+    evo.run(out_root=out_root, resume=args.resume, progress=progress, init_from=args.init_from)
     return 0
 
 
@@ -137,6 +137,10 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--resume", action="store_true", help="continue from checkpoint.json")
     r.add_argument("--quiet", action="store_true")
     r.add_argument("--checkpoint-every", type=int, help="override metrics.checkpoint_every")
+    r.add_argument(
+        "--init-from",
+        help="start from the final population of another run (its directory or checkpoint)",
+    )
     r.add_argument(
         "--workers", type=int, default=1, help="processes evaluating the population (default 1)"
     )

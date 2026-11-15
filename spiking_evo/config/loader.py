@@ -68,7 +68,49 @@ def _coerce(tp: Any, value: Any, path: str) -> Any:
 def config_from_dict(data: dict[str, Any]) -> Config:
     cfg = _build(Config, data, "")
     validate(cfg)
+    phase_configs(cfg)  # validates the phases too
     return cfg
+
+
+def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def phase_configs(cfg: Config) -> list[tuple[int, str, Config]]:
+    """[(first generation, name, config)] for every phase; phase 0 is the base config."""
+    base = config_to_dict(cfg)
+    base.pop("phases")
+    out = [(0, "base", _build(Config, base, ""))]
+    last = 0
+    for i, ph in enumerate(cfg.phases):
+        where = f"phases[{i}]"
+        if set(ph) - {"from_generation", "name", "set"} or "from_generation" not in ph:
+            raise ConfigError(f"{where}: keys are from_generation, name, set")
+        start = ph["from_generation"]
+        if not isinstance(start, int) or start <= last:
+            raise ConfigError(f"{where}: from_generation must increase and be > 0")
+        last = start
+        changes = ph.get("set") or {}
+        if not isinstance(changes, dict):
+            raise ConfigError(f"{where}.set: expected a mapping")
+        for forbidden in ("phases", "seed", "experiment", "genetics"):
+            if forbidden in changes and not (
+                forbidden == "genetics"
+                and "generations" not in changes["genetics"]
+                and "population" not in changes["genetics"]
+            ):
+                raise ConfigError(
+                    f"{where}.set: cannot change {forbidden}"
+                    + (" generations/population" if forbidden == "genetics" else "")
+                )
+        merged = _merge(base, changes)
+        phase_cfg = _build(Config, merged, f"{where}.set")
+        validate(phase_cfg)
+        out.append((start, str(ph.get("name", f"phase{i + 1}")), phase_cfg))
+    return out
 
 
 def load_config(path: str | Path) -> Config:

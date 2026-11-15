@@ -24,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..config.loader import phase_configs
 from ..config.schema import Config
 from ..core.clock import Clock
 from ..core.world import World
@@ -33,7 +34,7 @@ from ..seeding import derive_rng
 from ..snn.controller import N_MOTOR_OUTPUTS, SNNController
 from ..snn.encoders import make_encoder
 from ..stimuli.registry import build_stimuli
-from .genome import Genome, GenomeSpec, build_network_batch
+from .genome import Genome, GenomeSpec, adapt_genome, build_network_batch
 from .operators import crossover, mutate, tournament_select
 
 
@@ -59,14 +60,40 @@ class Evolution:
     def __init__(self, cfg: Config, workers: int = 1, blind: tuple[str, ...] = ()) -> None:
         """``blind``: names of stimuli whose sensory channels read as zero (for ablation
         tests); their effects on the world are unchanged."""
-        self.cfg = cfg
+        self.base_cfg = cfg
         self.blind = tuple(blind)
-        n_in, self.input_names = n_input_channels(cfg)
-        self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS + cfg.network.action_outputs)
+        self.phases = phase_configs(cfg)
+        self.phase_index = -1
+        self._activate_phase(0)
         if workers > 1 and cfg.world.arenas != "isolated":
             raise ValueError("parallel evaluation needs world.arenas: isolated")
         self.workers = max(1, min(workers, cfg.genetics.population))
         self._pool: ProcessPoolExecutor | None = None
+
+    # -- phases ----------------------------------------------------------------------
+    def phase_at(self, generation: int) -> int:
+        return max(i for i, (start, _, _) in enumerate(self.phases) if start <= generation)
+
+    def _activate_phase(self, index: int) -> bool:
+        """Switch config, senses and genome layout to phase ``index``; True if changed."""
+        if index == self.phase_index:
+            return False
+        self.phase_index = index
+        self.phase_name = self.phases[index][1]
+        cfg = self.phases[index][2]
+        self.cfg = cfg
+        n_in, self.input_names = n_input_channels(cfg)
+        self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS + cfg.network.action_outputs)
+        if getattr(self, "_pool", None) is not None:
+            self.close()  # workers hold the previous phase's config
+        return True
+
+    def adapt(self, genomes: list[Genome], old_inputs: list[str]) -> list[Genome]:
+        """Carry genomes from another sensory layout over to the current phase."""
+        n_out = self.spec.n_outputs
+        if list(old_inputs) == self.input_names and all(g.n_outputs == n_out for g in genomes):
+            return [g.repair(self.spec) for g in genomes]
+        return [adapt_genome(g, old_inputs, self.input_names, n_out, self.spec) for g in genomes]
 
     # -- population ---------------------------------------------------------------
     def initial_population(self) -> list[Genome]:
@@ -196,21 +223,44 @@ class Evolution:
         out_root: str | Path | None = None,
         resume: bool = False,
         progress: Callable[[dict], None] | None = None,
+        init_from: str | Path | None = None,
     ) -> list[Genome]:
-        cfg = self.cfg
+        """Run the generational loop.
+
+        ``init_from``: a run directory (or its checkpoint.json) of another experiment; its
+        final population replaces the random initial one, adapted to this run's senses.
+        """
+        cfg = self.base_cfg
         logger = RunLogger(run_dir(cfg, out_root), cfg, TERM_NAMES)
         start = 0
         if resume and logger.checkpoint_path.exists():
             ckpt = logger.load_checkpoint()
             start = int(ckpt["next_generation"])
-            population = [Genome.from_dict(d).repair(self.spec) for d in ckpt["genomes"]]
+            self._activate_phase(self.phase_at(start))
+            population = [Genome.from_dict(d) for d in ckpt["genomes"]]
+            population = self.adapt(population, ckpt.get("input_names") or self.input_names)
+        elif init_from is not None:
+            self._activate_phase(0)
+            genomes, names = load_population(init_from)
+            population = self.adapt(genomes, names)
+            if len(population) != cfg.genetics.population:
+                raise ValueError(
+                    f"init_from has {len(population)} genomes, the config wants "
+                    f"{cfg.genetics.population}"
+                )
         else:
             population = self.initial_population()
         logger.start(start)
+        logger.log_phase(start, self.phase_name, self.input_names)
         last = cfg.genetics.generations - 1
         evaluated = population
         try:
             for gen in range(start, cfg.genetics.generations):
+                old_inputs = self.input_names
+                if self._activate_phase(self.phase_at(gen)):
+                    population = self.adapt(population, old_inputs)
+                    logger.log_phase(gen, self.phase_name, self.input_names)
+                cfg = self.cfg
                 t0 = time.perf_counter()
                 ev = self.evaluate(population, gen)
                 best = int(np.argmax(ev.fitness))
@@ -228,7 +278,7 @@ class Evolution:
                 population = self.reproduce(population, ev.fitness, gen)
                 every = cfg.metrics.checkpoint_every
                 if gen == last or (every > 0 and (gen + 1) % every == 0):
-                    logger.checkpoint(gen + 1, [g.to_dict() for g in population])
+                    logger.checkpoint(gen + 1, [g.to_dict() for g in population], self.input_names)
         finally:
             self.close()
         return evaluated
@@ -283,6 +333,25 @@ class Blinded:
 
     def sense(self, agents, world):
         return np.zeros((len(agents), len(self._inner.channels)))
+
+
+def load_population(path: str | Path) -> tuple[list[Genome], list[str]]:
+    """Genomes and their input channel names from a run directory or a checkpoint file."""
+    import json
+
+    import yaml
+
+    from ..config import config_from_dict
+
+    path = Path(path)
+    ckpt_path = path / "checkpoint.json" if path.is_dir() else path
+    data = json.loads(ckpt_path.read_text(encoding="utf-8"))
+    names = data.get("input_names")
+    if not names:  # older checkpoints: recompute from the run's config.yaml
+        raw = yaml.safe_load((ckpt_path.parent / "config.yaml").read_text(encoding="utf-8"))
+        raw.pop("_run", None)
+        names = n_input_channels(config_from_dict(raw))[1]
+    return [Genome.from_dict(d) for d in data["genomes"]], list(names)
 
 
 def merge_evaluations(parts: list[Evaluation]) -> Evaluation:

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from spiking_evo.config.schema import Config, MutationConfig
-from spiking_evo.genetics.genome import Genome, GenomeSpec, build_network_batch
+from spiking_evo.genetics.genome import Genome, GenomeSpec, adapt_genome, build_network_batch
 from spiking_evo.genetics.operators import (
     add_neuron,
     add_synapse,
@@ -157,3 +157,24 @@ def test_build_network_batch(spec):
         assert net.active[b].sum() == g.n_neurons
         assert np.count_nonzero(net.weights[b]) == np.count_nonzero(g.weight)
         assert net.weights[b, g.delay - 1, g.src, g.dst].tolist() == g.weight.tolist()
+
+
+def test_adapt_genome_keeps_shared_senses_and_hidden_neurons(spec):
+    import dataclasses
+
+    old_names = ["food.front", "food.here", "bias"]  # spec: 3 inputs, 4 outputs
+    g = Genome.random(spec, np.random.default_rng(11))
+    g.src = np.array([0, 1, 2, 7, 8, 3])
+    g.dst = np.array([3, 7, 8, 4, 6, 9])
+    g.weight = np.array([0.5, 1.0, 1.5, 2.0, 2.5, 3.0])
+    g.delay = np.array([1, 1, 2, 1, 1, 1])
+    g = g.repair(spec)
+    new_names = ["season.phase_sin", "food.front", "hazard.here", "bias"]  # food.here gone
+    new_spec = dataclasses.replace(spec, n_inputs=4, n_outputs=5)
+    a = adapt_genome(g, old_names, new_names, 5, new_spec)
+    assert (a.n_inputs, a.n_outputs, a.n_hidden) == (4, 5, g.n_hidden)
+    syn = {(int(s), int(d)): float(w) for s, d, w in zip(a.src, a.dst, a.weight, strict=True)}
+    # old indices: inputs 0-2, outputs 3-6, hidden 7..; new: inputs 0-3, outputs 4-8, hidden 9..
+    assert syn == {(1, 4): 0.5, (3, 10): 1.5, (9, 5): 2.0, (10, 7): 2.5, (4, 11): 3.0}
+    assert np.array_equal(a.v_thresh[9:], g.v_thresh[7:])
+    assert_valid(a, new_spec)

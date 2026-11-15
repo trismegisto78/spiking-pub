@@ -247,3 +247,57 @@ def build_network_batch(genomes: list[Genome], spec: GenomeSpec) -> NetworkBatch
         net.active[b, :n] = True
         net.weights[b, g.delay - 1, g.src, g.dst] = g.weight
     return net
+
+
+def adapt_genome(
+    genome: Genome,
+    old_inputs: list[str],
+    new_inputs: list[str],
+    new_outputs: int,
+    spec: GenomeSpec,
+) -> Genome:
+    """Carry a genome over to a new sensory/motor layout (environment change).
+
+    Inputs are matched by channel name: a sense that still exists keeps its synapses, a new
+    sense gets a fresh input neuron with no synapses, a sense that disappeared loses its
+    synapses. Outputs are matched by position (the first 4 are always movement); new outputs
+    start unconnected, removed ones lose their synapses. Hidden neurons and all their
+    parameters are kept.
+    """
+    if len(old_inputs) != genome.n_inputs:
+        raise ValueError("old_inputs does not match the genome's input count")
+    n_in_old, n_out_old = genome.n_inputs, genome.n_outputs
+    n_in_new = len(new_inputs)
+    pos = {name: i for i, name in enumerate(new_inputs)}
+    n_hidden = genome.n_hidden
+    n_new = n_in_new + new_outputs + n_hidden
+
+    # Old index -> new index (-1 = gone).
+    mapping = np.full(genome.n_neurons, -1, dtype=np.int64)
+    for i, name in enumerate(old_inputs):
+        mapping[i] = pos.get(name, -1)
+    for o in range(min(n_out_old, new_outputs)):
+        mapping[n_in_old + o] = n_in_new + o
+    mapping[n_in_old + n_out_old :] = n_in_new + new_outputs + np.arange(n_hidden)
+
+    def params(old: np.ndarray, default: float) -> np.ndarray:
+        out = np.full(n_new, default)
+        keep = mapping >= 0
+        out[mapping[keep]] = old[keep]
+        return out
+
+    src, dst = mapping[genome.src], mapping[genome.dst]
+    ok = (src >= 0) & (dst >= 0)
+    adapted = Genome(
+        n_inputs=n_in_new,
+        n_outputs=new_outputs,
+        tau_m=params(genome.tau_m, spec.tau_m),
+        v_thresh=params(genome.v_thresh, spec.v_thresh),
+        v_reset=params(genome.v_reset, spec.v_reset),
+        refractory_ms=params(genome.refractory_ms, spec.refractory_ms),
+        src=src[ok],
+        dst=dst[ok],
+        weight=genome.weight[ok],
+        delay=genome.delay[ok],
+    )
+    return adapted.repair(spec)
