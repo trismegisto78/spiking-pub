@@ -4,6 +4,8 @@ python -m spiking_evo run spiking_evo/experiments/food_only_baseline.yaml
 python -m spiking_evo run CONFIG --seed 7 --generations 50 --out runs --resume
 python -m spiking_evo evaluate runs/<exp>/<seed>/snapshots/gen_0099.json --config CONFIG
 python -m spiking_evo sweep CONFIG [CONFIG ...] --seeds 1-16 --out /workspace/runs
+python -m spiking_evo analyze runs --out report
+python -m spiking_evo behaviour SNAPSHOT --config CONFIG --episodes 20
 
 The output root defaults to $SPIKING_EVO_OUT, then to metrics.out_dir of the config.
 """
@@ -94,6 +96,35 @@ def cmd_sweep(args) -> int:
     return 0 if all(not r["status"].startswith("failed") for r in rows) else 1
 
 
+def cmd_analyze(args) -> int:
+    from .analysis import analyze
+
+    res = analyze(args.root, args.out, tail=args.tail)
+    print(f"experiments: {', '.join(res['experiments'])}")
+    print(f"summary: {res['summary']}")
+    for img in res["plots"]:
+        print(f"plot: {img}")
+    if not res["plots"]:
+        print('no plots: install matplotlib (pip install -e ".[analysis]")')
+    return 0
+
+
+def cmd_behaviour(args) -> int:
+    from .behaviour import behaviour, format_report
+
+    cfg = _load(args)
+    with open(args.snapshot, encoding="utf-8") as f:
+        data = json.load(f)
+    genome = Genome.from_dict(data.get("genome", data))
+    report = behaviour(cfg, genome, episodes=args.episodes)
+    text = format_report(report)
+    print(text)
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="spiking-evo")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -127,6 +158,20 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--generations", type=int)
     s.add_argument("--checkpoint-every", type=int, default=1)
     s.set_defaults(func=cmd_sweep)
+
+    a = sub.add_parser("analyze", help="summarise runs across seeds: tables and plots")
+    a.add_argument("root", help="runs directory (contains <experiment>/<seed>/)")
+    a.add_argument("--out", default="report")
+    a.add_argument("--tail", type=int, default=10, help="last generations to average")
+    a.set_defaults(func=cmd_analyze)
+
+    b = sub.add_parser("behaviour", help="test which senses an evolved genome relies on")
+    b.add_argument("snapshot")
+    b.add_argument("--config", required=True)
+    b.add_argument("--seed", type=int)
+    b.add_argument("--episodes", type=int, default=50)
+    b.add_argument("--json", help="also write the report as JSON")
+    b.set_defaults(func=cmd_behaviour)
 
     c = sub.add_parser("cpus", help="print the number of CPUs available to this container")
     c.set_defaults(func=lambda a: print(available_cpus()) or 0)
