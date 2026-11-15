@@ -1,0 +1,18 @@
+=== first 10 generations
+static_fixed_50          fitness     489 ±    705  alive  55%  farmers 2/8  harvests   34.3  hazard steps   6.4  poisoned   3.6
+static_plastic_50        fitness     229 ±    358  alive  55%  farmers 1/8  harvests   18.4  hazard steps   8.4  poisoned   4.1  lr 0.0499  dw 0.204  plastic 0.48
+dynamic_fixed_50         fitness     172 ±    280  alive  47%  farmers 1/8  harvests   21.9  hazard steps  10.2  poisoned   4.8
+dynamic_plastic_50       fitness      51 ±     68  alive  44%  farmers 0/8  harvests    6.4  hazard steps  10.5  poisoned   4.5  lr 0.0501  dw 0.263  plastic 0.49
+=== generations 140-149
+static_fixed_50          fitness    1653 ±   1481  alive  84%  farmers 6/8  harvests  163.5  hazard steps  16.7  poisoned  12.0
+static_plastic_50        fitness    1159 ±   1096  alive  79%  farmers 6/8  harvests  105.7  hazard steps  12.6  poisoned  14.0  lr 0.0252  dw 0.159  plastic 0.51
+dynamic_fixed_50         fitness    1205 ±    953  alive  90%  farmers 5/8  harvests  101.9  hazard steps  21.2  poisoned  15.7
+dynamic_plastic_50       fitness     446 ±    291  alive  85%  farmers 2/8  harvests   25.2  hazard steps  25.2  poisoned   5.2  lr 0.0197  dw 0.061  plastic 0.51
+=== last 10 generations
+static_fixed_50          fitness    2876 ±   3130  alive  81%  farmers 6/8  harvests  187.7  hazard steps  16.6  poisoned  11.8
+static_plastic_50        fitness    1892 ±   1920  alive  74%  farmers 6/8  harvests  133.8  hazard steps  13.7  poisoned  18.1  lr 0.0287  dw 0.277  plastic 0.50
+dynamic_fixed_50         fitness    1320 ±   1485  alive  86%  farmers 5/8  harvests  113.2  hazard steps  18.4  poisoned  21.6
+dynamic_plastic_50       fitness     897 ±    743  alive  86%  farmers 3/8  harvests   60.0  hazard steps  25.5  poisoned  11.7  lr 0.0287  dw 0.086  plastic 0.51
+=== learning rate over generations (plastic runs, mean of seeds)
+static_plastic_50 {0: 0.05, 25: 0.0333, 50: 0.0184, 100: 0.0193, 200: 0.0216, 299: 0.0275}
+dynamic_plastic_50 {0: 0.05, 25: 0.0378, 50: 0.0215, 100: 0.017, 200: 0.0254, 299: 0.0304}

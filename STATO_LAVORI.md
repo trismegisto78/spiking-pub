@@ -345,6 +345,37 @@ Prossimi passi possibili: ambienti che cambiano dentro la vita in modo imprevedi
 campi e pericoli che si spostano a metà vita), una ricompensa più pulita, e la tappa C
 (cervello che nasce piccolo e cresce), che dà alla plasticità neuroni nuovi su cui lavorare.
 
+### Plasticità in un mondo che cambia durante la vita (15/11/2026)
+
+Nuove opzioni: `relocate_every` per `hazard` e `terrain` (zone e suolo nascosto si spostano
+durante l'episodio; i raccolti su suolo cambiato muoiono) e `plasticity.reward: stimuli`
+(ricompensa = solo energia data o tolta dagli stimoli, senza il costo fisso di vivere).
+
+Esperimento su RunPod (pod cpu3c da 32 vCPU, 14 minuti di calcolo, ~0.53 $ in tutto):
+4 condizioni × 8 seed × 300 generazioni, ambiente come `terrain_50_crops`; nel mondo che
+cambia pericoli e campi si spostano ogni 250 passi (4 mappe per vita). Dettagli in
+`results/2026-11-15-dynamic-runpod/`. Medie sulle ultime 10 generazioni:
+
+| | cervello fisso | cervello plastico |
+|---|---|---|
+| mondo fermo: fitness | **2876 ± 3130** | 1892 ± 1920 |
+| mondo fermo: agricoltori | 6/8 | 6/8 |
+| mondo che cambia: fitness | **1320 ± 1485** | 897 ± 743 |
+| mondo che cambia: agricoltori | 5/8 | 3/8 |
+
+Velocità di apprendimento media (plastici): 0.05 iniziale, minimo ~0.017–0.018 attorno alla
+generazione 50–100, poi risale a 0.028–0.030; quasi uguale nei due mondi.
+
+Conclusione: **l'ipotesi non è confermata.** Con questa regola (STDP modulata dalla
+ricompensa) la plasticità peggiora i risultati in entrambi i mondi, e di più in quello che
+cambia; l'evoluzione non la spegne del tutto, ma non la favorisce nel mondo variabile.
+Probabile causa: la regola modifica le sinapsi in base a coincidenze di spike e a una
+ricompensa che arriva in ritardo (raccolti dopo decine di passi, spostamenti ogni 250): il
+segnale è troppo debole e rumoroso per imparare *dove* andare, e intanto disturba i
+comportamenti che l'evoluzione aveva già fissato. Strade possibili: regole più semplici e
+mirate (es. apprendimento associativo solo sulle sinapsi sensori→motori, o "abituazione"),
+segnali di ricompensa immediati, oppure plasticità limitata ai neuroni nuovi (tappa C).
+
 ## 3. Mappa del codice
 
 ```
