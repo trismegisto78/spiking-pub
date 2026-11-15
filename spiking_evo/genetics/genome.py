@@ -291,6 +291,7 @@ def adapt_genome(
     new_inputs: list[str],
     new_outputs: int,
     spec: GenomeSpec,
+    rng: np.random.Generator | None = None,
 ) -> Genome:
     """Carry a genome over to a new sensory/motor layout (environment change).
 
@@ -299,6 +300,11 @@ def adapt_genome(
     synapses. Outputs are matched by position (the first 4 are always movement); new outputs
     start unconnected, removed ones lose their synapses. Hidden neurons and all their
     parameters are kept.
+
+    With ``rng``, every new input and output neuron is wired at random like in a newborn
+    genome (each possible synapse with probability ``spec.init_connection_prob``), so that a
+    new sense or muscle is used from the start and evolution can refine it. Without
+    wiring a new output never fires and a new sense is ignored.
     """
     if len(old_inputs) != genome.n_inputs:
         raise ValueError("old_inputs does not match the genome's input count")
@@ -324,6 +330,28 @@ def adapt_genome(
 
     src, dst = mapping[genome.src], mapping[genome.dst]
     ok = (src >= 0) & (dst >= 0)
+    src, dst = src[ok], dst[ok]
+    weight, delay = genome.weight[ok], genome.delay[ok]
+    pl = np.asarray(genome.plastic, dtype=bool)
+    plastic = pl[ok] if pl.shape == ok.shape else np.zeros(int(ok.sum()), dtype=bool)
+    if rng is not None:
+        fresh = np.ones(n_new, dtype=bool)
+        fresh[mapping[mapping >= 0]] = False  # neurons that existed before
+        new_in = np.flatnonzero(fresh[:n_in_new])
+        new_out = n_in_new + np.flatnonzero(fresh[n_in_new : n_in_new + new_outputs])
+        targets = np.arange(n_in_new, n_new)  # every non-input neuron
+        sources = np.arange(n_new)
+        pairs = [(s_, t) for s_ in new_in for t in targets]  # new senses -> brain
+        pairs += [(s_, t) for t in new_out for s_ in sources if s_ != t]  # brain -> new muscles
+        if pairs:
+            ps = np.array(pairs, dtype=np.int64).reshape(-1, 2)
+            keep = rng.random(len(ps)) < spec.init_connection_prob
+            ps = ps[keep]
+            src = np.concatenate([src, ps[:, 0]])
+            dst = np.concatenate([dst, ps[:, 1]])
+            weight = np.concatenate([weight, rng.normal(0.0, spec.init_weight_sigma, len(ps))])
+            delay = np.concatenate([delay, rng.integers(1, spec.max_delay + 1, len(ps))])
+            plastic = np.concatenate([plastic, np.full(len(ps), spec.plastic)])
     adapted = Genome(
         n_inputs=n_in_new,
         n_outputs=new_outputs,
@@ -331,11 +359,11 @@ def adapt_genome(
         v_thresh=params(genome.v_thresh, spec.v_thresh),
         v_reset=params(genome.v_reset, spec.v_reset),
         refractory_ms=params(genome.refractory_ms, spec.refractory_ms),
-        src=src[ok],
-        dst=dst[ok],
-        weight=genome.weight[ok],
-        delay=genome.delay[ok],
-        plastic=genome.plastic[ok],
+        src=src,
+        dst=dst,
+        weight=weight,
+        delay=delay,
+        plastic=plastic,
         learning_rate=genome.learning_rate,
     )
     return adapted.repair(spec)

@@ -88,12 +88,16 @@ class Evolution:
             self.close()  # workers hold the previous phase's config
         return True
 
-    def adapt(self, genomes: list[Genome], old_inputs: list[str]) -> list[Genome]:
-        """Carry genomes from another sensory layout over to the current phase."""
+    def adapt(self, genomes: list[Genome], old_inputs: list[str], key: int | str) -> list[Genome]:
+        """Carry genomes from another sensory layout over to the current phase; new senses
+        and outputs are wired at random (reproducibly, keyed by ``key``)."""
         n_out = self.spec.n_outputs
         if list(old_inputs) == self.input_names and all(g.n_outputs == n_out for g in genomes):
             return [g.repair(self.spec) for g in genomes]
-        return [adapt_genome(g, old_inputs, self.input_names, n_out, self.spec) for g in genomes]
+        rng = derive_rng(self.base_cfg.seed, "adapt", key)
+        return [
+            adapt_genome(g, old_inputs, self.input_names, n_out, self.spec, rng) for g in genomes
+        ]
 
     # -- population ---------------------------------------------------------------
     def initial_population(self) -> list[Genome]:
@@ -245,11 +249,11 @@ class Evolution:
             start = int(ckpt["next_generation"])
             self._activate_phase(self.phase_at(start))
             population = [Genome.from_dict(d) for d in ckpt["genomes"]]
-            population = self.adapt(population, ckpt.get("input_names") or self.input_names)
+            population = self.adapt(population, ckpt.get("input_names") or self.input_names, start)
         elif init_from is not None:
             self._activate_phase(0)
             genomes, names = load_population(init_from)
-            population = self.adapt(genomes, names)
+            population = self.adapt(genomes, names, "init_from")
             if len(population) != cfg.genetics.population:
                 raise ValueError(
                     f"init_from has {len(population)} genomes, the config wants "
@@ -265,7 +269,7 @@ class Evolution:
             for gen in range(start, cfg.genetics.generations):
                 old_inputs = self.input_names
                 if self._activate_phase(self.phase_at(gen)):
-                    population = self.adapt(population, old_inputs)
+                    population = self.adapt(population, old_inputs, gen)
                     logger.log_phase(gen, self.phase_name, self.input_names)
                 cfg = self.cfg
                 t0 = time.perf_counter()
