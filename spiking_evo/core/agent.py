@@ -32,9 +32,12 @@ class Agents:
     arena: np.ndarray  # (A,) int, index of the world copy the agent lives in
     energy_gained: np.ndarray  # (A,) float, sum of stimulus energy deltas while alive
     steps_alive: np.ndarray  # (A,) int
+    # (A, K) bool: generic actions requested this step (K = network.action_outputs). The core
+    # does not interpret them; stimuli may react to them in ``interact``.
+    action: np.ndarray
 
     @classmethod
-    def create(cls, n: int, arena: np.ndarray, initial_energy: float) -> Agents:
+    def create(cls, n: int, arena: np.ndarray, initial_energy: float, n_actions: int = 0) -> Agents:
         return cls(
             x=np.zeros(n, dtype=np.int64),
             y=np.zeros(n, dtype=np.int64),
@@ -44,6 +47,7 @@ class Agents:
             arena=np.asarray(arena, dtype=np.int64),
             energy_gained=np.zeros(n),
             steps_alive=np.zeros(n, dtype=np.int64),
+            action=np.zeros((n, n_actions), dtype=bool),
         )
 
     def __len__(self) -> int:

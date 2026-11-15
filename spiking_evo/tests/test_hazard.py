@@ -3,7 +3,7 @@ import pytest
 
 from spiking_evo.config.schema import AgentConfig, WorldConfig
 from spiking_evo.core.world import World
-from spiking_evo.stimuli.hazard import HazardStimulus
+from spiking_evo.stimuli.hazard import HazardStimulus, stamp_disks
 from spiking_evo.stimuli.registry import available, build_stimulus
 
 CH = ["front", "left", "right", "back", "here"]
@@ -18,7 +18,8 @@ def make_world(stimuli, n=1, wrap=True, size=11):
 
 def single_cell(hz, w, x, y):
     hz.grid = np.zeros((w.n_arenas, w.height, w.width))
-    hz.grid[:, y, x] = 1.0
+    hz.grid[:, y, x] = hz.max_damage
+    hz._sense_grid = hz.grid / hz.max_damage
 
 
 def put(w, i, x, y, h):
@@ -28,7 +29,7 @@ def put(w, i, x, y, h):
 def test_registered():
     assert "hazard" in available()
     hz = build_stimulus({"type": "hazard", "count": 2, "damage": 3.0})
-    assert isinstance(hz, HazardStimulus) and hz.damage == 3.0
+    assert isinstance(hz, HazardStimulus) and hz.levels.tolist() == [3.0]
 
 
 def test_zone_geometry_and_wrap():
@@ -117,3 +118,39 @@ def test_disk_stamp_matches_distance_definition():
                     dy, dx = np.minimum(dy, 9 - dy), np.minimum(dx, 9 - dx)
                 expected |= dx**2 + dy**2 <= 2.5**2
             assert np.array_equal(hz.grid[a] > 0, expected)
+
+
+def test_damage_levels_per_zone_and_sensed_intensity():
+    hz = HazardStimulus(
+        count=40,
+        radius=0.0,
+        damage=[1.0, 3.0, 6.0],
+        channels=CH,
+        sense_gain=1.0,
+        shared_layout=False,
+    )
+    w = make_world([hz], n=2, size=30)
+    assert set(np.unique(hz.zone_damage)) == {1.0, 3.0, 6.0}
+    assert set(np.unique(hz.grid)) <= {0.0, 1.0, 3.0, 6.0}
+    # An agent standing on a zone loses that zone's damage and senses it scaled by the max.
+    a = 0
+    cx, cy = hz.centers[a, 0]
+    level = hz.grid[a, cy, cx]
+    put(w, 0, cx, cy, 0)
+    assert hz.interact(w.agents, w)[0] == -level
+    assert hz.sense(w.agents, w)[0, CH.index("here")] == pytest.approx(level / 6.0)
+
+
+def test_overlapping_zones_take_the_strongest():
+    hz = HazardStimulus(count=2, radius=1.0, damage=[1.0, 5.0])
+    w = make_world([hz], size=9)
+    grid = np.zeros((1, 9, 9))
+    oy = np.array([0, 0, 0, 1, -1])
+    ox = np.array([0, 1, -1, 0, 0])
+    # zone A (damage 1) centred at x=4, zone B (damage 5) at x=5, both at y=4
+    stamp_disks(
+        grid, np.zeros(2, int), np.array([4, 4]), np.array([4, 5]), np.array([1.0, 5.0]), oy, ox, w
+    )
+    assert grid[0, 4, 3] == 1.0  # only A
+    assert grid[0, 4, 4] == 5.0  # overlap: strongest wins
+    assert grid[0, 4, 6] == 5.0  # only B

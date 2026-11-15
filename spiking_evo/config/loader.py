@@ -121,6 +121,7 @@ def validate(cfg: Config) -> None:
         (0.0 <= g.crossover <= 1.0, "genetics.crossover must be a probability"),
         (g.encoding == "direct", "genetics.encoding: only 'direct' is implemented (milestone 1)"),
         (cfg.fitness.episodes >= 1, "fitness.episodes must be >= 1"),
+        (n.action_outputs >= 0, "network.action_outputs must be >= 0"),
         (len(cfg.stimuli) >= 1, "at least one stimulus is required"),
         (all("type" in s for s in cfg.stimuli), "every stimulus needs a 'type'"),
     ]

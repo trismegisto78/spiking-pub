@@ -19,7 +19,7 @@ import os
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -42,6 +42,8 @@ class Evaluation:
     fitness: np.ndarray
     terms: dict[str, np.ndarray]
     stats: BehaviourStats
+    # Per-agent counters reported by stimuli (``episode_stats``), keyed "<stimulus>.<stat>".
+    stimulus_stats: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 def n_input_channels(cfg: Config) -> tuple[int, list[str]]:
@@ -57,7 +59,7 @@ class Evolution:
     def __init__(self, cfg: Config, workers: int = 1) -> None:
         self.cfg = cfg
         n_in, self.input_names = n_input_channels(cfg)
-        self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS)
+        self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS + cfg.network.action_outputs)
         if workers > 1 and cfg.world.arenas != "isolated":
             raise ValueError("parallel evaluation needs world.arenas: isolated")
         self.workers = max(1, min(workers, cfg.genetics.population))
@@ -94,6 +96,7 @@ class Evolution:
             clock=Clock(cfg.network.dt_ms, cfg.network.steps_per_tick),
             batch_offset=offset,
             batch_total=total,
+            n_actions=cfg.network.action_outputs,
         )
         encoder = make_encoder(
             cfg.network.encoder,
@@ -102,6 +105,7 @@ class Evolution:
             current_gain=cfg.network.current_gain,
         )
         per_episode = []
+        stim_episodes: list[dict[str, np.ndarray]] = []
         for ep in range(cfg.fitness.episodes):
             keys = ("eval", generation, "episode", ep)
             controller = SNNController(
@@ -112,10 +116,19 @@ class Evolution:
                 bias_input=cfg.network.bias_input,
                 motor_threshold_hz=cfg.network.motor_threshold_hz,
                 rng=derive_rng(seed, *keys, "encoder"),
+                action_threshold_hz=cfg.network.action_threshold_hz,
                 batch_offset=offset,
                 batch_total=total,
             )
             res = world.run_episode(controller, seed, *keys)
+            stim_episodes.append(
+                {
+                    f"{s.name}.{k}": np.asarray(v, dtype=np.float64)
+                    for s in world.stimuli
+                    if hasattr(s, "episode_stats")
+                    for k, v in s.episode_stats().items()
+                }
+            )
             per_episode.append(
                 BehaviourStats(
                     energy_gained=res.energy_gained,
@@ -134,7 +147,10 @@ class Evolution:
                 for f in BehaviourStats.__dataclass_fields__
             }
         )
-        return Evaluation(fitness=total_fitness(terms), terms=terms, stats=stats)
+        stim = {k: np.mean([e[k] for e in stim_episodes], axis=0) for k in stim_episodes[0]}
+        return Evaluation(
+            fitness=total_fitness(terms), terms=terms, stats=stats, stimulus_stats=stim
+        )
 
     def _get_pool(self) -> ProcessPoolExecutor:
         if self._pool is None:
@@ -197,6 +213,7 @@ class Evolution:
                 best = int(np.argmax(ev.fitness))
                 row = self._generation_row(gen, population, ev, best, time.perf_counter() - t0)
                 logger.log_generation(row, self._terms_row(gen, ev))
+                logger.log_stimulus_stats(gen, ev.stimulus_stats)
                 every = cfg.metrics.snapshot_every
                 if gen == last or (every > 0 and gen % every == 0):
                     logger.snapshot(gen, population[best].to_dict(), float(ev.fitness[best]))
@@ -251,6 +268,9 @@ def merge_evaluations(parts: list[Evaluation]) -> Evaluation:
     return Evaluation(
         fitness=cat([p.fitness for p in parts]),
         terms={t: cat([p.terms[t] for p in parts]) for t in parts[0].terms},
+        stimulus_stats={
+            k: cat([p.stimulus_stats[k] for p in parts]) for k in parts[0].stimulus_stats
+        },
         stats=BehaviourStats(
             **{
                 f: cat([getattr(p.stats, f) for p in parts])

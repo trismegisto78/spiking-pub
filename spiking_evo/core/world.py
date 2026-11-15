@@ -10,6 +10,10 @@ and a list of objects implementing ``stimuli.base.Stimulus``. Order of one world
     5. every stimulus acts on the agents         (Stimulus.interact -> energy deltas)
     6. metabolic cost is paid, agents with no energy left die (if enabled)
 
+Generic actions (``network.action_outputs``) are stored in ``agents.action`` before step 5;
+the core gives them no meaning, stimuli decide what they do. This is the one core extension
+made for environment modification (see STATO_LAVORI.md).
+
 In "isolated" mode every agent has its own arena (a private copy of the world, so no
 competition); in "shared" mode all agents live in arena 0.
 
@@ -39,8 +43,9 @@ if TYPE_CHECKING:
 class Controller(Protocol):
     def reset(self) -> None: ...
 
-    def act(self, observations: np.ndarray, active: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """(A, C) observations and (A,) alive mask -> (forward, turn) in {-1,0,1}, each (A,).
+    def act(self, observations: np.ndarray, active: np.ndarray) -> tuple[np.ndarray, ...]:
+        """(A, C) observations and (A,) alive mask -> (forward, turn) in {-1,0,1}, each (A,),
+        optionally followed by an (A, K) boolean array of generic actions.
 
         Actions of dead agents are ignored by the world."""
         ...
@@ -65,6 +70,7 @@ class World:
         clock: Clock | None = None,
         batch_offset: int = 0,
         batch_total: int | None = None,
+        n_actions: int = 0,
     ) -> None:
         self.batch_offset = batch_offset
         self.batch_total = batch_total or n_agents
@@ -79,7 +85,8 @@ class World:
         self.n_agents = n_agents
         self.n_arenas = n_agents if world_cfg.arenas == "isolated" else 1
         arena = np.arange(n_agents) if world_cfg.arenas == "isolated" else np.zeros(n_agents)
-        self.agents = Agents.create(n_agents, arena, agent_cfg.initial_energy)
+        self.n_actions = n_actions
+        self.agents = Agents.create(n_agents, arena, agent_cfg.initial_energy, n_actions)
         self.clock = clock or Clock()
         self.visited = np.zeros((n_agents, self.height, self.width), dtype=bool)
 
@@ -151,7 +158,10 @@ class World:
         for stim in self.stimuli:
             stim.step(self, t)
 
-        forward, turn = controller.act(self.sense(), a.alive.copy())
+        out = controller.act(self.sense(), a.alive.copy())
+        forward, turn = out[0], out[1]
+        if self.n_actions:
+            a.action[:] = (out[2] if len(out) > 2 else False) & a.alive[:, None]
         forward = np.where(a.alive, forward, 0)
         turn = np.where(a.alive, turn, 0)
 

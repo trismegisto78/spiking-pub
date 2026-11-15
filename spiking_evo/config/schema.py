@@ -60,6 +60,10 @@ class NetworkConfig:
     current_gain: float = 2.0  # current encoder: injected current at intensity 1
     # Motor decoding: act when the rate difference of an antagonist pair exceeds this.
     motor_threshold_hz: float = 0.0
+    # Extra "action" output neurons, beyond the 4 movement neurons. What an action does is
+    # decided by the stimuli that read ``agents.action``; the core only delivers it.
+    action_outputs: int = 0
+    action_threshold_hz: float = 50.0  # an action fires when its neuron exceeds this rate
     init_connection_prob: float = 0.3
     init_weight_sigma: float = 1.0
     weight_max: float = 5.0

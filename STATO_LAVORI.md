@@ -11,10 +11,10 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 |---|---|
 | Milestone 1 (baseline) | **completo**, criterio di successo superato |
 | Ottimizzazione per Runpod (CPU) | **completa**, verificata in locale con Docker |
-| Milestone 2 (ambiente ricco) | **in corso**: `HazardStimulus` fatto, `FoodPatchStimulus` e test comportamentale formale da fare |
+| Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 91, tutti verdi; `ruff` pulito |
+| Test | 104, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -82,6 +82,53 @@ Test comportamentale fatto a mano: genoma migliore della generazione 99 su 20 ep
 Con danno 1 il pericolo costa poco e l'evitamento è debole; con danno 3 gli agenti evitano le
 zone (5 volte meno tempo dentro) e, se privati del senso del pericolo, perdono due terzi
 dell'energia. È un singolo seed: va confermato con uno `sweep` su più seed.
+
+### Pericoli con danni diversi e terreno modificabile (15/11/2026)
+
+**Pericoli a più livelli.** `damage` può essere una lista, ad esempio `[1, 3, 6]`: ogni zona
+riceve un livello a caso, e dove le zone si sovrappongono vale il più forte. Le creature
+percepiscono il pericolo in proporzione al danno (`danno / danno massimo`), quindi una zona
+più pericolosa "si sente" di più.
+
+**Terreno modificabile** (`stimuli/terrain.py`). Ogni creatura ha un neurone d'uscita in più,
+"agisci", che opera sulla cella dove si trova. Il terreno ha una qualità nascosta, che le
+creature non percepiscono:
+- su terreno fertile l'azione pianta un raccolto, che matura dopo `grow_time` passi e
+  mangiato rende `harvest_energy` (conseguenza positiva, ritardata);
+- su terreno sterile l'azione avvelena la cella per `poison_duration` passi, e chi ci sta
+  sopra perde `poison_damage` a ogni passo (conseguenza negativa, immediata);
+- ogni azione costa `action_cost`.
+Le creature percepiscono soltanto le conseguenze (raccolti maturi, veleno), non il terreno.
+
+**Unica modifica al core, e perché.** Per modificare l'ambiente serve un'uscita motoria
+nuova; prima il core conosceva solo i 4 neuroni di movimento. La modifica è generica: il
+parametro `network.action_outputs` aggiunge K neuroni d'azione, il controller li decodifica
+(azione attiva sopra `action_threshold_hz`) e il mondo li mette in `agents.action` prima che
+gli stimoli agiscano. Il core non sa cosa fa un'azione: lo decide lo stimolo che la legge.
+Con `action_outputs: 0` (default) i risultati sono identici bit per bit a prima.
+
+**Misure per stimolo.** Gli stimoli possono esporre `episode_stats()`; i contatori finiscono in
+`stimuli.csv` (media e massimo per generazione): cibo mangiato, passi e danno nei pericoli,
+azioni, semine, raccolti, avvelenamenti, passi sul veleno.
+
+**Risultati** (seed 42, 150 generazioni, ~4 minuti con `--workers 4`; valori medi per creatura
+per episodio):
+
+| esperimento | gen 0 | gen 50 | gen 125 | gen 149 |
+|---|---|---|---|---|
+| `terrain_50` (20% fertile, maturazione 100 passi): fitness | -16.5 | 242 | 256 | 258 |
+| azioni / semine / raccolti | 5.3 / 0.3 / 0 | 0.1 / 0 / 0 | 0.2 / 0 / 0 | 0 / 0 / 0 |
+| `terrain_50_easy` (48% fertile, maturazione 30 passi, azione meno costosa): fitness | 54 | 534 | 2439 | 1138 |
+| azioni / semine / raccolti | 81 / 11 / 6 | 277 / 72 / 43 | 661 / 258 / 178 | 354 / 133 / 87 |
+
+- Con il terreno difficile l'evoluzione **elimina** l'azione: agire a caso avvelena quasi
+  sempre, e il premio è troppo lontano nel tempo per essere scoperto.
+- Con il terreno facile emerge l'**agricoltura**: le creature seminano e tornano a raccogliere,
+  e quasi abbandonano il cibo selvatico (da 17 a circa 5 cibi per episodio). La fitness oscilla
+  molto tra generazioni (ogni generazione è valutata su un episodio diverso): va confermata con
+  più seed e `fitness.episodes` maggiore di 1.
+- Domanda aperta e interessante: dove sta il punto di passaggio tra i due esiti (percentuale
+  fertile, tempo di maturazione, costo)? È un buon esperimento da fare con `sweep`.
 
 ### Griglie più grandi
 
@@ -309,10 +356,8 @@ comportamentale.
 2. **Genoma indiretto:** regole di crescita a partire da un seme; selezione con
    `genetics.encoding: indirect` (oggi la config accetta solo `direct`).
 3. **`SignalChannel`:** gli agenti emettono valori visibili ai vicini. Richiede
-   `world.arenas: shared`, quindi niente parallelismo a blocchi; e richiede un canale motorio
-   in più per "emettere". Attenzione: il numero di uscite oggi è fisso a 4
-   (`snn/controller.py`, `N_MOTOR_OUTPUTS`). Rendere configurabili le uscite motorie è una
-   modifica al core da documentare prima di farla, come chiede la spec.
+   `world.arenas: shared`, quindi niente parallelismo a blocchi. Per "emettere" può usare
+   un'uscita d'azione generica (`network.action_outputs`), già disponibile.
 
 ### Milestone 4: analisi
 
@@ -328,7 +373,6 @@ oggi non sono registrate, solo il conteggio delle celle visitate.
   molta più velocità per run, le opzioni sono Numba sul ciclo SNN o un backend alternativo
   (Brian2/Norse sono previsti come opzionali dalla spec, non implementati).
 - Il crossover non usa numeri di innovazione (vedi punto 8 della sezione 4).
-- Le uscite motorie sono fisse a 4.
 - Il riepilogo della fitness non include ancora intervalli tra seed: arriva con lo script di
   analisi.
 - Il repository non ha CI: conviene aggiungere un workflow GitHub Actions con `pytest` e `ruff`

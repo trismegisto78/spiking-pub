@@ -5,6 +5,7 @@ antagonist pairs, decoded as firing rates over the tick window:
 
     output 0 / 1: forward / backward  -> move +1, 0 or -1 cells
     output 2 / 3: turn left / right   -> rotate -90, 0 or +90 degrees
+    outputs 4..:  generic actions      -> True when the rate exceeds action_threshold_hz
 """
 
 from __future__ import annotations
@@ -28,11 +29,13 @@ class SNNController:
         bias_input: bool,
         motor_threshold_hz: float,
         rng: np.random.Generator,
+        action_threshold_hz: float = 50.0,
         batch_offset: int = 0,
         batch_total: int | None = None,
     ) -> None:
-        if net.n_outputs != N_MOTOR_OUTPUTS:
-            raise ValueError(f"the controller needs {N_MOTOR_OUTPUTS} output neurons")
+        if net.n_outputs < N_MOTOR_OUTPUTS:
+            raise ValueError(f"the controller needs at least {N_MOTOR_OUTPUTS} output neurons")
+        self.n_actions = net.n_outputs - N_MOTOR_OUTPUTS
         self.net = net
         self.network = SpikingNetwork(net, dt_ms)
         self.encoder = encoder
@@ -40,6 +43,7 @@ class SNNController:
         self.steps_per_tick = steps_per_tick
         self.bias_input = bias_input
         self.motor_threshold_hz = motor_threshold_hz
+        self.action_threshold_hz = action_threshold_hz
         self.rng = rng
         # This batch may be a slice [offset, offset + B) of a larger population split
         # across processes; encoders draw randomness for the whole population and slice
@@ -104,7 +108,11 @@ class SNNController:
         self.snn_steps += self.steps_per_tick
         window_s = self.steps_per_tick * self.dt_ms / 1000.0
         rates = counts / window_s
-        return self._decode(rates[:, 0] - rates[:, 1]), self._decode(rates[:, 3] - rates[:, 2])
+        forward = self._decode(rates[:, 0] - rates[:, 1])
+        turn = self._decode(rates[:, 3] - rates[:, 2])
+        if self.n_actions == 0:
+            return forward, turn
+        return forward, turn, rates[:, N_MOTOR_OUTPUTS:] > self.action_threshold_hz
 
     def _decode(self, diff: np.ndarray) -> np.ndarray:
         thr = self.motor_threshold_hz

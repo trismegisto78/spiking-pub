@@ -5,6 +5,7 @@ Layout of ``runs/<experiment>/<seed>/``:
     config.yaml               config used, plus repository commit hash
     generations.csv           one row per generation (fitness stats, activity, size)
     terms.csv                 mean / min / max contribution of every fitness term
+    stimuli.csv               per-agent counters reported by stimuli (mean / max per stat)
     snapshots/gen_XXXX.json   best genome every ``snapshot_every`` generations
     checkpoint.json           whole population, to resume the run
 """
@@ -20,6 +21,8 @@ from typing import Any
 
 from ..config.loader import dump_config
 from ..config.schema import Config
+
+STIMULI_COLUMNS = ["generation", "stat", "mean", "max"]
 
 GENERATION_COLUMNS = [
     "generation",
@@ -77,6 +80,10 @@ class RunLogger:
         return self.dir / "terms.csv"
 
     @property
+    def stimuli_csv(self) -> Path:
+        return self.dir / "stimuli.csv"
+
+    @property
     def checkpoint_path(self) -> Path:
         return self.dir / "checkpoint.json"
 
@@ -88,6 +95,7 @@ class RunLogger:
         extra = {"_run": {**git_info(repo), "resumed_from_generation": first_generation or None}}
         (self.dir / "config.yaml").write_text(dump_config(self.cfg, extra), encoding="utf-8")
         for path, cols in (
+            (self.stimuli_csv, STIMULI_COLUMNS),
             (self.generations_csv, GENERATION_COLUMNS),
             (self.terms_csv, self.term_columns),
         ):
@@ -107,6 +115,19 @@ class RunLogger:
     def log_generation(self, row: dict[str, Any], terms: dict[str, Any]) -> None:
         self._append(self.generations_csv, GENERATION_COLUMNS, row)
         self._append(self.terms_csv, self.term_columns, terms)
+
+    def log_stimulus_stats(self, generation: int, stats: dict[str, Any]) -> None:
+        for key, values in stats.items():
+            self._append(
+                self.stimuli_csv,
+                STIMULI_COLUMNS,
+                {
+                    "generation": generation,
+                    "stat": key,
+                    "mean": float(values.mean()),
+                    "max": float(values.max()),
+                },
+            )
 
     def snapshot(self, generation: int, genome: dict[str, Any], fitness: float) -> Path:
         path = self.dir / "snapshots" / f"gen_{generation:04d}.json"

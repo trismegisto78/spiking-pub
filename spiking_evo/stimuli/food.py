@@ -55,6 +55,26 @@ def sector_kernels(radius: int, channels: tuple[str, ...]) -> np.ndarray:
     return kernels
 
 
+def extract_patch(grid: np.ndarray, agents: Agents, world: World, offsets: np.ndarray):
+    """(A, k, k) values of ``grid`` around each agent (0 outside a walled world)."""
+    ys = agents.y[:, None] + offsets
+    xs = agents.x[:, None] + offsets
+    valid = world.in_bounds(xs[:, None, :], ys[:, :, None])
+    if world.wrap:
+        ys, xs = ys % world.height, xs % world.width
+    else:
+        ys, xs = np.clip(ys, 0, world.height - 1), np.clip(xs, 0, world.width - 1)
+    return grid[agents.arena[:, None, None], ys[:, :, None], xs[:, None, :]] * valid
+
+
+def sector_values(patch, agents, kernels, gain, dir_channels, channels, out) -> None:
+    """Fill ``out`` with the squashed 1/distance-weighted sums of ``patch`` per sector."""
+    raw = np.einsum("aij,acij->ac", patch, kernels[agents.heading])
+    vals = 1.0 - np.exp(-gain * raw)
+    for j, c in enumerate(dir_channels):
+        out[:, channels.index(c)] = vals[:, j]
+
+
 def egocentric_sense(
     grid: np.ndarray,
     agents: Agents,
@@ -64,27 +84,22 @@ def egocentric_sense(
     kernels: np.ndarray,
     offsets: np.ndarray,
     gain: float,
+    here_scale: float | None = None,
 ) -> np.ndarray:
     """Shared sensing for grid-based stimuli: directional sectors + ``here``.
 
-    ``grid`` is (arenas, H, W) with intensities (counts or 0/1).
+    ``grid`` is (arenas, H, W) with intensities (counts or 0/1). ``here`` is 1 when the
+    agent's cell is non-zero, or ``min(1, value / here_scale)`` when ``here_scale`` is given.
     """
     out = np.zeros((len(agents), len(channels)))
     if dir_channels:
-        ys = agents.y[:, None] + offsets
-        xs = agents.x[:, None] + offsets
-        valid = world.in_bounds(xs[:, None, :], ys[:, :, None])
-        if world.wrap:
-            ys, xs = ys % world.height, xs % world.width
-        else:
-            ys, xs = np.clip(ys, 0, world.height - 1), np.clip(xs, 0, world.width - 1)
-        patch = grid[agents.arena[:, None, None], ys[:, :, None], xs[:, None, :]] * valid
-        raw = np.einsum("aij,acij->ac", patch, kernels[agents.heading])
-        vals = 1.0 - np.exp(-gain * raw)
-        for j, c in enumerate(dir_channels):
-            out[:, channels.index(c)] = vals[:, j]
+        patch = extract_patch(grid, agents, world, offsets)
+        sector_values(patch, agents, kernels, gain, dir_channels, channels, out)
     if "here" in channels:
-        out[:, channels.index("here")] = grid[agents.arena, agents.y, agents.x] > 0
+        cell = grid[agents.arena, agents.y, agents.x]
+        out[:, channels.index("here")] = (
+            cell > 0 if here_scale is None else np.minimum(1.0, cell / here_scale)
+        )
     return out
 
 
@@ -121,6 +136,7 @@ class FoodStimulus:
     # -- Stimulus protocol ------------------------------------------------------
     def reset(self, world: World, rng: np.random.Generator) -> None:
         self.rng = rng
+        self.eaten = np.zeros(world.n_agents, dtype=np.int64)
         h, w, n = world.height, world.width, world.n_arenas
         if self.count > h * w:
             raise ValueError("more food items than grid cells")
@@ -175,6 +191,7 @@ class FoodStimulus:
             _, first = np.unique(key + agents.x[eaters], return_index=True)
             eaters = eaters[first]
         delta[eaters] = amount[eaters] * self.energy_value
+        self.eaten[eaters] += amount[eaters]
         self.grid[agents.arena[eaters], agents.y[eaters], agents.x[eaters]] = 0
         # The items lying on the eaters' cells are gone. Only the eaters' arenas are checked,
         # so the cost does not grow with the size of the grid.
@@ -184,6 +201,9 @@ class FoodStimulus:
         )
         np.logical_and.at(self.present, ar, ~on_cell)
         return delta
+
+    def episode_stats(self) -> dict[str, np.ndarray]:
+        return {"eaten": self.eaten.astype(np.float64)}
 
     # -- helpers -----------------------------------------------------------------
     def remaining(self) -> np.ndarray:
