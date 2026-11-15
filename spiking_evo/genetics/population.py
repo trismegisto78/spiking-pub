@@ -56,8 +56,11 @@ def n_input_channels(cfg: Config) -> tuple[int, list[str]]:
 
 
 class Evolution:
-    def __init__(self, cfg: Config, workers: int = 1) -> None:
+    def __init__(self, cfg: Config, workers: int = 1, blind: tuple[str, ...] = ()) -> None:
+        """``blind``: names of stimuli whose sensory channels read as zero (for ablation
+        tests); their effects on the world are unchanged."""
         self.cfg = cfg
+        self.blind = tuple(blind)
         n_in, self.input_names = n_input_channels(cfg)
         self.spec = GenomeSpec.from_config(cfg, n_in, N_MOTOR_OUTPUTS + cfg.network.action_outputs)
         if workers > 1 and cfg.world.arenas != "isolated":
@@ -91,7 +94,7 @@ class Evolution:
         world = World(
             cfg.world,
             cfg.agent,
-            build_stimuli(cfg.stimuli),
+            [Blinded(s) if s.name in self.blind else s for s in build_stimuli(cfg.stimuli)],
             n_agents=len(genomes),
             clock=Clock(cfg.network.dt_ms, cfg.network.steps_per_tick),
             batch_offset=offset,
@@ -159,7 +162,7 @@ class Evolution:
                 max_workers=self.workers,
                 mp_context=mp.get_context("spawn"),
                 initializer=_init_worker,
-                initargs=(self.cfg,),
+                initargs=(self.cfg, self.blind),
             )
         return self._pool
 
@@ -263,6 +266,25 @@ class Evolution:
         return row
 
 
+class Blinded:
+    """Wraps a stimulus so that the agents perceive nothing from it."""
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+
+    def __getattr__(self, attr):
+        return getattr(self._inner, attr)
+
+    def __setattr__(self, attr, value):
+        if attr == "_inner":
+            object.__setattr__(self, attr, value)
+        else:
+            setattr(self._inner, attr, value)
+
+    def sense(self, agents, world):
+        return np.zeros((len(agents), len(self._inner.channels)))
+
+
 def merge_evaluations(parts: list[Evaluation]) -> Evaluation:
     cat = np.concatenate
     return Evaluation(
@@ -289,9 +311,9 @@ def limit_native_threads() -> None:
 _WORKER: Evolution | None = None
 
 
-def _init_worker(cfg: Config) -> None:
+def _init_worker(cfg: Config, blind: tuple[str, ...] = ()) -> None:
     global _WORKER
-    _WORKER = Evolution(cfg)
+    _WORKER = Evolution(cfg, blind=blind)
 
 
 def _evaluate_in_worker(genomes: list[Genome], generation: int, offset: int, total: int):

@@ -50,3 +50,14 @@ def test_worker_pool_run_matches_serial(tiny_config, tmp_path):
 def test_shared_arenas_cannot_be_split(tiny_config):
     with pytest.raises(ValueError, match="isolated"):
         Evolution(tiny_config(world={"arenas": "shared"}), workers=2)
+
+
+def test_blinding_a_stimulus_zeroes_only_its_senses(tiny_config):
+    cfg = tiny_config(stimuli=[{"type": "food", "count": 12}, {"type": "hazard", "count": 2}])
+    pop = Evolution(cfg).initial_population()
+    seen = Evolution(cfg).evaluate(pop, 0)
+    blind = Evolution(cfg, blind=("food",)).evaluate(pop, 0)
+    assert not np.array_equal(seen.fitness, blind.fitness)
+    assert np.array_equal(
+        Evolution(cfg, blind=("food",), workers=2).evaluate(pop, 0).fitness, blind.fitness
+    )
