@@ -758,3 +758,8 @@ Da incollare all'inizio di una sessione sul PC:
 > (`HazardStimulus`, `FoodPatchStimulus`, test comportamentale) rispettando le regole della
 > sezione 7: nessuna modifica a `core/` per i nuovi stimoli, estrazioni casuali con
 > `world.per_arena`, test prima del codice.
+
+
+## D4 naturale (2026-11-15) — cure NON emergono, vengono eliminate
+
+Vedi `results/2026-11-15-eco-d4/README.md`. Con cure: 8/32 estinti, feed rate finale 13 contro 109 del controllo (H1 smentito, p=1.0); H2 e H3 non supportati. Nutrire costa e, senza parentela (kin_only false) e con popolazione sempre al tetto di 300, non rende: la selezione lo spegne. Prossimi passi possibili: kin_only true (dono solo ai propri figli, selezione di parentela), capacità più alta o mondo limitato dal cibo e non dai posti, piccoli che senza aiuto davvero non sopravvivono per scarsa capacità (cervello piccolo) e non per regola.
