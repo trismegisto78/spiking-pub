@@ -1,6 +1,6 @@
 """Seasons: a cycle that changes the other stimuli during an agent's life.
 
-``seasons`` is a list of ``{name, length, modifiers}``; the cycle repeats every
+``seasons`` is a list of ``{name, length, modifiers, living_cost}``; the cycle repeats every
 ``sum(length)`` world steps. ``modifiers`` multiplies parameters of the other stimuli,
 addressed as ``"<stimulus name>.<parameter>"``, for example::
 
@@ -10,6 +10,11 @@ addressed as ``"<stimulus name>.<parameter>"``, for example::
       - { name: autumn, length: 125, modifiers: { terrain.harvest_energy: 1.5 } }
       - { name: winter, length: 125, modifiers: { food.regrow_rate: 0.0,
                                                   terrain.growth_rate: 0.25 } }
+
+``living_cost`` (default 0) is an extra energy cost per step for every living agent during
+that season, on top of ``agent.metabolic_cost``: a harsh winter makes simply staying alive
+expensive. It is charged by this stimulus, so it appears in the agents' energy balance (and
+in ``energy_<season>``) like any other stimulus effect.
 
 Each stimulus lists the parameters it accepts in ``SEASONAL`` (food: regrow_rate,
 energy_value; hazard: damage; terrain: growth_rate, harvest_energy, poison_damage). A
@@ -48,10 +53,12 @@ class SeasonStimulus:
     ) -> None:
         if not seasons:
             raise ValueError("season: give at least one season")
-        allowed = {"name", "length", "modifiers"}
+        allowed = {"name", "length", "modifiers", "living_cost"}
         for i, s in enumerate(seasons):
             if set(s) - allowed or "length" not in s or int(s["length"]) < 1:
                 raise ValueError(f"season {i}: needs length >= 1; keys {sorted(allowed)}")
+            if float(s.get("living_cost", 0.0)) < 0:
+                raise ValueError(f"season {i}: living_cost must be >= 0")
             for key, value in (s.get("modifiers") or {}).items():
                 if key.count(".") != 1 or float(value) < 0:
                     raise ValueError(f"season {i}: modifier {key!r} must be 'stimulus.param' >= 0")
@@ -65,6 +72,7 @@ class SeasonStimulus:
         self.seasons = seasons
         self.random_phase = random_phase
         self.lengths = np.array([int(s["length"]) for s in seasons])
+        self.living_costs = np.array([float(s.get("living_cost", 0.0)) for s in seasons])
         self.period = int(self.lengths.sum())
         self._starts = np.concatenate([[0], np.cumsum(self.lengths)[:-1]])
         self.offset = 0
@@ -124,7 +132,7 @@ class SeasonStimulus:
         return out
 
     def interact(self, agents: Agents, world: World) -> np.ndarray:
-        return np.zeros(len(agents))
+        return -self.living_costs[self.current] * agents.alive
 
     # -- helpers -----------------------------------------------------------------
     def season_at(self, t: int) -> int:

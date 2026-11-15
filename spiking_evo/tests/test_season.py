@@ -132,3 +132,22 @@ def test_energy_is_booked_per_season():
     # steps 0-1 in a, 2-3 in b, step 4 in a (booked at the next step: not yet)
     assert st["energy_a"][0] == -2.0 and st["energy_b"][0] == -2.0
     assert st["steps_a"][0] == 2 and st["steps_b"][0] == 2
+
+
+def test_living_cost_and_seasonal_action_cost():
+    seasons = [
+        {"name": "mild", "length": 2},
+        {"name": "winter", "length": 2, "living_cost": 0.5,
+         "modifiers": {"terrain.action_cost": 4.0}},
+    ]  # fmt: skip
+    w = make_world([{"type": "season", "seasons": seasons},
+                    {"type": "terrain", "action_cost": 0.1, "poison_damage": 0.0}])  # fmt: skip
+    ctrl = Still(act_at={0, 2})
+    gains = []
+    for _ in range(4):
+        before = w.agents.energy[0]
+        w.step(ctrl)
+        gains.append(round(w.agents.energy[0] - before, 6))
+    assert gains == [-0.1, 0.0, -0.9, -0.5]  # winter: 0.5 to live, action 0.1 x 4
+    with pytest.raises(ValueError, match="living_cost"):
+        make_world([{"type": "season", "seasons": [{"length": 2, "living_cost": -1}]}])

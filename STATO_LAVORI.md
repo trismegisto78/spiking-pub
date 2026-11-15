@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 116, tutti verdi; `ruff` pulito |
+| Test | 117, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -213,6 +213,37 @@ generazioni, 2745 nelle ultime 10; vive a fine episodio 75%.
 - Per vedere strategie stagionali (accumulare prima dell'inverno, smettere di seminare quando
   non conviene) servono stagioni più dure: azione più costosa o veleno più forte d'inverno,
   oppure un inverno in cui seminare non rende nulla.
+
+### Vita più cara, soprattutto d'inverno (15/11/2026)
+
+`season` accetta `living_cost` per stagione: un costo extra per ogni passo da vivi, oltre ad
+`agent.metabolic_cost`. Anche `terrain.action_cost` ora è stagionale. Due varianti di
+`terrain_50_seasons`:
+
+| | `terrain_50_harsh` | `terrain_50_spicy` |
+|---|---|---|
+| costo base di vivere | 0.15 | 0.08 |
+| extra estate / inverno | +0.10 / +0.35 | +0.05 / +0.15 |
+| costo dell'azione in inverno | ×4 | ×2 |
+
+Seed 42, 150 generazioni, medie sulle ultime 10:
+
+| | harsh | spicy |
+|---|---|---|
+| fitness | 89 | 940 |
+| vive a fine episodio | 39% | 56% |
+| raccolti per episodio | 0 | 144 (di cui 4.9 jackpot) |
+| cibo selvatico mangiato | 40 | 1.6 |
+| quota di passi con azione: primavera / estate / autunno / inverno | 0.2% in ogni stagione | 88% / 89% / 74% / 72% |
+
+- **Harsh**: troppo dura. All'inizio muoiono tutte; nessuna scopre l'agricoltura, perché
+  sperimentare costa troppo. Dopo 150 generazioni sopravvive il 39%, vivendo di cibo selvatico,
+  e la sopravvivenza sta ancora crescendo.
+- **Spicy**: l'agricoltura emerge comunque, e compare il primo **adattamento stagionale**:
+  le creature agiscono meno in autunno e inverno che in primavera ed estate (senza costi
+  stagionali la differenza era minima: 84–91%). L'inverno resta in pareggio (0.22 di energia per
+  passo).
+- Un solo seed: le differenze tra stagioni vanno confermate con più seed.
 
 ### Griglie più grandi
 

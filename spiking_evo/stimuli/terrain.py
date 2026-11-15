@@ -52,7 +52,7 @@ NEVER = np.iinfo(np.int64).max // 4
 class TerrainStimulus:
     # growth_rate scales how fast crops ripen (0.5 = twice as slow); harvest_energy scales
     # the energy of every variety; poison_damage scales the poison.
-    SEASONAL = ("growth_rate", "harvest_energy", "poison_damage")
+    SEASONAL = ("growth_rate", "harvest_energy", "poison_damage", "action_cost")
 
     def __init__(
         self,
@@ -222,7 +222,7 @@ class TerrainStimulus:
 
         # 2. Act on the current cell.
         acting = alive & agents.action[:, self.action]
-        delta -= self.action_cost * acting
+        delta -= self.action_cost * seasonal(self, "action_cost") * acting
         self.actions += acting
         free = (self.sown[a, y, x] == 0) & (self.poison_until[a, y, x] <= t)
         idx = self._one_per_cell(np.flatnonzero(acting & free), agents, world)
