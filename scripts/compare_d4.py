@@ -30,6 +30,9 @@ ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "runs")
 RNG = np.random.default_rng(0)
 N_PERM = 20000
 WIN = 20000
+# Runs stopped early (budget) count as surviving if they reached MIN_TICK; extinct runs
+# end at their last log, far below it.
+MIN_TICK = int(sys.argv[2]) if len(sys.argv) > 2 else 190000
 
 
 def run_metrics(path: Path) -> dict | None:
@@ -41,7 +44,7 @@ def run_metrics(path: Path) -> dict | None:
     feeds, births, jd = col("feed_events"), col("births"), col("deaths_juvenile")
     step = tick[0] if len(tick) == 1 else tick[1] - tick[0]
     last = tick[-1]
-    if pop[-1] == 0 or last < 190000:
+    if pop[-1] == 0 or last < MIN_TICK:
         return {"extinct": True}
 
     def rate(mask):
@@ -82,6 +85,9 @@ for name in ("eco_d4_care", "eco_d4_control"):
         v = [r[k] for r in data[name] if np.isfinite(r[k])]
         print(f"  {k} {np.mean(v) if v else np.nan:.3f}", end="")
     print()
+    for f, r in zip(sorted((ROOT / name).glob("*/ecosystem.csv")), runs, strict=True):
+        if not r["extinct"]:
+            print(f"   {f.parent.name:>3s} " + " ".join(f"{k}={r[k]:.3f}" for k in r if k != "extinct"))
 
 
 def v(name, key):
