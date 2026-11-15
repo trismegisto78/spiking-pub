@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 110, tutti verdi; `ruff` pulito |
+| Test | 116, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -170,6 +170,49 @@ Media fitness: 46 nelle prime 10 generazioni, 1062 nelle ultime 10.
   contro 44%): un premio frequente e piccolo è più sicuro.
 - Per rendere interessante la scelta tra varietà: aumentare il costo dell'azione (rende
   sconveniente il ciclo rapido) o far vedere la varietà prima della maturazione.
+
+### Stagioni (15/11/2026)
+
+Nuovo stimolo `season` (`stimuli/season.py`): un ciclo di stagioni dentro la vita di ogni
+creatura. Ogni stagione moltiplica parametri degli altri stimoli, indicati come
+`"<stimolo>.<parametro>"`. Parametri stagionali: cibo `regrow_rate` ed `energy_value`;
+pericolo `damage`; terreno `growth_rate`, `harvest_energy` e `poison_damage`. La crescita dei
+raccolti segue un "orologio di crescita" che avanza con `growth_rate`, quindi un raccolto
+piantato in autunno rallenta davvero quando arriva l'inverno. Le creature sentono il momento
+dell'anno (`phase_sin`, `phase_cos`; opzionale un canale per stagione); con `random_phase`
+ogni vita inizia in un punto a caso dell'anno. Nessuna modifica al core: lo stimolo legge
+`agents.energy_gained` e `agents.action` per contare energia, azioni e passi vissuti per
+stagione (`stimuli.csv`).
+
+Esperimento `terrain_50_seasons.yaml` (varietà di raccolto come `terrain_50_crops`), anno di
+500 passi, quindi due anni per vita:
+
+| stagione | effetti |
+|---|---|
+| primavera | cibo ricresce ×2, raccolti crescono ×1.5 |
+| estate | pericoli ×2 |
+| autunno | raccolti rendono ×1.5 |
+| inverno | cibo non ricresce, raccolti crescono ×0.2, pericoli ×0.5 |
+
+Seed 42, 150 generazioni (~4 minuti con `--workers 4`). Fitness media: 48 nelle prime 10
+generazioni, 2745 nelle ultime 10; vive a fine episodio 75%.
+
+| stagione | energia per passo, gen 0–9 | gen 140–149 | quota di passi con azione, gen 0–9 | gen 140–149 |
+|---|---|---|---|---|
+| primavera | 0.09 | 4.60 | 12% | 91% |
+| estate | 0.11 | 3.44 | 12% | 91% |
+| autunno | 0.09 | 4.99 | 3% | 86% |
+| inverno | 0.00 | 0.87 | 3% | 84% |
+
+- L'energia segue le stagioni (l'inverno rende 5–6 volte meno), ma il **comportamento quasi
+  non cambia**: le creature agiscono in tutte le stagioni, inverno compreso (84%). Coltivare
+  sempre resta conveniente perché l'azione costa poco.
+- Raccolti per episodio nelle ultime 10 generazioni: slow 37.9, medium 57.4, fast 175.1,
+  jackpot 20.2. Il jackpot è raccolto molto più spesso che senza stagioni (fino a 4): da
+  verificare con più seed prima di trarne conclusioni.
+- Per vedere strategie stagionali (accumulare prima dell'inverno, smettere di seminare quando
+  non conviene) servono stagioni più dure: azione più costosa o veleno più forte d'inverno,
+  oppure un inverno in cui seminare non rende nulla.
 
 ### Griglie più grandi
 

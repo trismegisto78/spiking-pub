@@ -209,7 +209,7 @@ def test_ripe_crop_sensed_in_proportion_to_energy():
     put(w)
     soil(tr, True, 3)  # fast: 2 energy -> 2/60 of the jackpot
     tr.sown[0, 5, 5] = 1
-    tr.t = 100
+    tr.t = tr.g = 100
     assert tr.sense(w.agents, w)[0, 1] == pytest.approx(2.0 / 60.0)
     soil(tr, True, 4)
     assert tr.sense(w.agents, w)[0, 1] == pytest.approx(1.0)

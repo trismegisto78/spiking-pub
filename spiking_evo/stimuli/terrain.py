@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .base import seasonal
 from .food import extract_patch, sector_kernels, sector_values
 from .hazard import disk_offsets, stamp_disks
 from .registry import register
@@ -49,6 +50,10 @@ NEVER = np.iinfo(np.int64).max // 4
 
 @register("terrain")
 class TerrainStimulus:
+    # growth_rate scales how fast crops ripen (0.5 = twice as slow); harvest_energy scales
+    # the energy of every variety; poison_damage scales the poison.
+    SEASONAL = ("growth_rate", "harvest_energy", "poison_damage")
+
     def __init__(
         self,
         action: int = 0,
@@ -154,7 +159,11 @@ class TerrainStimulus:
             self.variety = soil.astype(np.int64)
         self.fertile = self.variety > 0
         # Planting time + 1 (0 = no crop): 0 is also what cells outside a walled grid read.
-        self.sown = np.zeros((n, h, w), dtype=np.int64)
+        # Crop growth is measured on a "growth clock" g that advances by the seasonal
+        # growth rate each step (g == t without seasons). sown = g at planting + 1.
+        self.sown = np.zeros((n, h, w))
+        self.g = 0.0
+        self._rate = 1.0
         self.poison_until = np.zeros((n, h, w), dtype=np.int64)  # poisoned while t < value
         self.t = 0
         a = world.n_agents
@@ -167,17 +176,20 @@ class TerrainStimulus:
         self.poison_steps = np.zeros(a)
 
     def step(self, world: World, t: int) -> None:
+        if t > 0:
+            self.g += self._rate
+        self._rate = seasonal(self, "growth_rate")
         self.t = t  # state is event-based: nothing to update cell by cell
 
     def sense(self, agents: Agents, world: World) -> np.ndarray:
         out = np.zeros((len(agents), len(self.channels)))
-        t = self.t
+        t, g = self.t, self.g
         for kind, dirs in self._dirs.items():
             if dirs:
                 if kind == "crop":
                     raw = extract_patch(self.sown, agents, world, self._offsets)
                     var = extract_patch(self.variety, agents, world, self._offsets)
-                    ripe = (raw > 0) & (t - (raw - 1) >= self._grow[var])
+                    ripe = (raw > 0) & (g - (raw - 1) >= self._grow[var])
                     patch = ripe * (self._energy[var] / self._max_energy)
                 else:
                     raw = extract_patch(self.poison_until, agents, world, self._offsets)
@@ -201,7 +213,7 @@ class TerrainStimulus:
         idx = self._one_per_cell(np.flatnonzero(ripe), agents, world)
         if idx.size:
             var = self.variety[a[idx], y[idx], x[idx]]
-            gain = self._energy[var]
+            gain = self._energy[var] * seasonal(self, "harvest_energy")
             delta[idx] += gain
             self.harvested[idx] += 1
             self.harvest_energy_total[idx] += gain
@@ -217,7 +229,7 @@ class TerrainStimulus:
         if idx.size:
             fertile = self.fertile[a[idx], y[idx], x[idx]]
             sow, spoil = idx[fertile], idx[~fertile]
-            self.sown[a[sow], y[sow], x[sow]] = t + 1
+            self.sown[a[sow], y[sow], x[sow]] = self.g + 1
             self.planted[sow] += 1
             until = NEVER if self.poison_duration == 0 else t + self.poison_duration
             self.poison_until[a[spoil], y[spoil], x[spoil]] = until
@@ -225,7 +237,7 @@ class TerrainStimulus:
 
         # 3. Poison hurts whoever stands on it (including a cell poisoned just now).
         hurt = alive & (self.poison_until[a, y, x] > t)
-        delta -= self.poison_damage * hurt
+        delta -= self.poison_damage * seasonal(self, "poison_damage") * hurt
         self.poison_steps += hurt
         return delta
 
@@ -253,7 +265,7 @@ class TerrainStimulus:
         if kind == "crop":
             p = self.sown[a, y, x]
             var = self.variety[a, y, x]
-            ripe = (p > 0) & (self.t - (p - 1) >= self._grow[var])
+            ripe = (p > 0) & (self.g - (p - 1) >= self._grow[var])
             return ripe * (self._energy[var] / self._max_energy)
         return (self.poison_until[a, y, x] > self.t).astype(np.float64)
 

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .base import seasonal
 from .registry import register
 
 if TYPE_CHECKING:
@@ -105,6 +106,8 @@ def egocentric_sense(
 
 @register("food")
 class FoodStimulus:
+    SEASONAL = ("regrow_rate", "energy_value")
+
     def __init__(
         self,
         count: int = 60,
@@ -156,7 +159,7 @@ class FoodStimulus:
         # Fixed number of draws per step and arena, so an arena's food depends neither on the
         # other arenas nor on how the population is split across processes.
         u = world.per_arena(self.rng.random, self.count)
-        regrow = (u < self.regrow_rate) & ~self.present
+        regrow = (u < self.regrow_rate * seasonal(self, "regrow_rate")) & ~self.present
         hw = world.height * world.width
         cells = world.per_arena(lambda shape: self.rng.integers(hw, size=shape), self.count)
         if not regrow.any():
@@ -190,7 +193,7 @@ class FoodStimulus:
             key = (agents.arena[eaters] * world.height + agents.y[eaters]) * world.width
             _, first = np.unique(key + agents.x[eaters], return_index=True)
             eaters = eaters[first]
-        delta[eaters] = amount[eaters] * self.energy_value
+        delta[eaters] = amount[eaters] * self.energy_value * seasonal(self, "energy_value")
         self.eaten[eaters] += amount[eaters]
         self.grid[agents.arena[eaters], agents.y[eaters], agents.x[eaters]] = 0
         # The items lying on the eaters' cells are gone. Only the eaters' arenas are checked,

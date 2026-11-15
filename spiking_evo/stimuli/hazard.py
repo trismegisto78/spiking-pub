@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .base import seasonal
 from .food import ALL_CHANNELS, DIRECTIONAL_CHANNELS, egocentric_sense, sector_kernels
 from .registry import register
 
@@ -49,6 +50,8 @@ def disk_offsets(radius: float) -> tuple[np.ndarray, np.ndarray]:
 
 @register("hazard")
 class HazardStimulus:
+    SEASONAL = ("damage",)
+
     def __init__(
         self,
         count: int = 6,
@@ -144,6 +147,7 @@ class HazardStimulus:
 
     def interact(self, agents: Agents, world: World) -> np.ndarray:
         dmg = np.where(agents.alive, self.grid[agents.arena, agents.y, agents.x], 0.0)
+        dmg = dmg * seasonal(self, "damage")
         self.steps_inside += dmg > 0
         self.damage_taken += dmg
         return -dmg

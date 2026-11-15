@@ -2,7 +2,7 @@
 
 Popolazioni di agenti guidati da reti di neuroni spiking (LIF) evolute con un algoritmo
 genetico, in un mondo a griglia estendibile tramite stimoli. Stato: **milestone 1
-(baseline)** completo; milestone 2 in corso (stimoli `hazard` e `terrain`). Specifica completa in `SPEC.md`; stato dei lavori e prossimi passi in
+(baseline)** completo; milestone 2 in corso (stimoli `hazard`, `terrain` e `season`). Specifica completa in `SPEC.md`; stato dei lavori e prossimi passi in
 `STATO_LAVORI.md`.
 
 ## Uso

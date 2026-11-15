@@ -23,6 +23,16 @@ if TYPE_CHECKING:
     from ..core.world import World
 
 
+def seasonal(stimulus: object, param: str) -> float:
+    """Current seasonal multiplier of ``param`` for a stimulus (1.0 without seasons).
+
+    A ``season`` stimulus writes the multipliers into ``stimulus._season``; stimuli that
+    support seasons list the parameters they accept in ``SEASONAL`` and multiply them by
+    ``seasonal(self, name)`` where they use them.
+    """
+    return getattr(stimulus, "_season", {}).get(param, 1.0)
+
+
 @runtime_checkable
 class Stimulus(Protocol):
     name: str
