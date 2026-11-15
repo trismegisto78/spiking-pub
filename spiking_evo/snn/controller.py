@@ -32,6 +32,7 @@ class SNNController:
         action_threshold_hz: float = 50.0,
         plasticity=None,
         weight_max: float = 5.0,
+        development=None,
         batch_offset: int = 0,
         batch_total: int | None = None,
     ) -> None:
@@ -39,7 +40,16 @@ class SNNController:
             raise ValueError(f"the controller needs at least {N_MOTOR_OUTPUTS} output neurons")
         self.n_actions = net.n_outputs - N_MOTOR_OUTPUTS
         self.net = net
-        self.network = SpikingNetwork(net, dt_ms, plasticity=plasticity, weight_max=weight_max)
+        self.network = SpikingNetwork(
+            net,
+            dt_ms,
+            plasticity=plasticity,
+            weight_max=weight_max,
+            plastic_new_only=bool(development and development.plastic_new_only),
+        )
+        self.development = development if self.network.develops else None
+        self.difficulty = np.zeros(net.batch)
+        self.woken = np.zeros(net.batch, dtype=np.int64)
         self.plasticity = plasticity if self.network.learns else None
         self._reward_baseline = np.zeros(net.batch)
         self.encoder = encoder
@@ -69,6 +79,8 @@ class SNNController:
 
     def reset(self) -> None:
         self.network.reset()
+        self.difficulty.fill(0.0)
+        self.woken.fill(0)
         self._reward_baseline.fill(0.0)
         self.noninput_spikes.fill(0)
         self.active_steps.fill(0)
@@ -127,6 +139,11 @@ class SNNController:
     ) -> None:
         """Reward-modulated plasticity: the energy change of the last world step, compared
         with its running average (a reward prediction error), drives learning."""
+        if self.development is not None:
+            # Difficulty = energy taken by stimuli (damage, poison, costs of acting...).
+            lost = -(stimulus_delta if stimulus_delta is not None else energy_delta)
+            self.difficulty += np.maximum(lost, 0.0) * alive
+            self.woken += self.network.wake(self.difficulty)
         p = self.plasticity
         if p is None:
             return
@@ -137,6 +154,12 @@ class SNNController:
         signal = np.clip(r - self._reward_baseline, -1.0, 1.0) * alive
         self._reward_baseline += (r - self._reward_baseline) / p.reward_baseline_steps
         self.network.apply_reward(signal)
+
+    def energy_cost(self) -> np.ndarray | None:
+        """Energy the brain uses this step: neuron_cost per awake non-input neuron."""
+        if self.development is None or self.development.neuron_cost == 0:
+            return None
+        return self.development.neuron_cost * self.network.awake_count(self.net.n_inputs)
 
     def _decode(self, diff: np.ndarray) -> np.ndarray:
         thr = self.motor_threshold_hz

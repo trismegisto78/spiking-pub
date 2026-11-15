@@ -34,6 +34,9 @@ class NetworkBatch:
     # Plasticity (optional): which synapses may learn, and each network's learning rate.
     plastic: np.ndarray | None = None  # (B, D, N, N) bool
     learning_rate: np.ndarray | None = None  # (B,)
+    # Development (optional): neurons asleep at birth and the difficulty that wakes them.
+    dormant: np.ndarray | None = None  # (B, N) bool
+    wake_at: np.ndarray | None = None  # (B, N)
 
     @property
     def batch(self) -> int:
@@ -98,6 +101,7 @@ class SpikingNetwork:
         dt_ms: float,
         plasticity=None,
         weight_max: float = 5.0,
+        plastic_new_only: bool = False,
     ) -> None:
         self.net = net
         self.dt_ms = dt_ms
@@ -105,7 +109,9 @@ class SpikingNetwork:
         self._decay = decay_factor(net.tau_m, dt_ms)
         self._gain = 1.0 - self._decay  # weight of the external current
         self._ref_steps = refractory_steps(net.refractory_ms, dt_ms)
-        self._thresh = np.where(net.active, net.v_thresh, np.inf)
+        self._thresh_genome = np.where(net.active, net.v_thresh, np.inf)
+        self._thresh = self._thresh_genome.copy()
+        self.develops = net.dormant is not None
         self._v_reset = np.ascontiguousarray(net.v_reset)
         # Evolved networks are sparse: propagate along the list of existing synapses
         # (gather from the spike history, scatter-add into the targets).
@@ -129,7 +135,11 @@ class SpikingNetwork:
         self._ptr = 0
         self.learns = learns
         if learns:
-            pl = np.flatnonzero(net.plastic[bi, di, si, ti])
+            pl_mask = net.plastic[bi, di, si, ti]
+            if plastic_new_only and net.dormant is not None:
+                # only synapses touching a neuron that is dormant at birth may learn
+                pl_mask = pl_mask & (net.dormant[bi, si] | net.dormant[bi, ti])
+            pl = np.flatnonzero(pl_mask)
             self._pl = pl  # positions (in the synapse list) of the plastic synapses
             self._pl_pre = (bi * n + si)[pl]
             self._pl_post = (bi * n + ti)[pl]
@@ -145,6 +155,10 @@ class SpikingNetwork:
 
     def reset(self) -> None:
         np.copyto(self._syn_w, self._syn_w0)
+        np.copyto(self._thresh, self._thresh_genome)
+        if self.develops:
+            self._thresh[self.net.dormant] = np.inf  # asleep: never fires
+            self.awake = self.net.active & ~self.net.dormant
         if self.learns:
             self._trace.fill(0.0)
             self._elig.fill(0.0)
@@ -192,6 +206,24 @@ class SpikingNetwork:
             self._trace *= self._trace_decay
             self._trace += sp
         return spikes
+
+    def wake(self, difficulty: np.ndarray) -> np.ndarray:
+        """Wake dormant neurons whose threshold ``difficulty`` (B,) has reached.
+        Returns the (B,) number of neurons woken now."""
+        if not self.develops:
+            return np.zeros(self.net.batch, dtype=np.int64)
+        new = self.net.dormant & ~self.awake & (difficulty[:, None] >= self.net.wake_at)
+        new &= self.net.active
+        if new.any():
+            self._thresh[new] = self._thresh_genome[new]
+            self.awake |= new
+        return new.sum(axis=1)
+
+    def awake_count(self, from_neuron: int = 0) -> np.ndarray:
+        """(B,) awake neurons with index >= from_neuron (e.g. skip the inputs)."""
+        if self.develops:
+            return self.awake[:, from_neuron:].sum(axis=1)
+        return self.net.active[:, from_neuron:].sum(axis=1)
 
     def apply_reward(self, reward: np.ndarray) -> None:
         """Convert eligibility into weight changes; ``reward`` is (B,) in about [-1, 1]."""

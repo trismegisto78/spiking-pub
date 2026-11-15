@@ -13,7 +13,8 @@ and a list of objects implementing ``stimuli.base.Stimulus``. Order of one world
 After each step a controller that defines ``feedback(energy_delta, alive, stimulus_delta)``
 receives the
 energy change of every agent (total, and the part due to stimuli only): the reward signal for
-learning during life (plasticity).
+learning during life (plasticity). A controller may also define ``energy_cost()`` (energy its
+brain uses this step), paid together with the metabolic cost.
 
 Generic actions (``network.action_outputs``) are stored in ``agents.action`` before step 5;
 the core gives them no meaning, stimuli decide what they do. This is the one core extension
@@ -187,6 +188,11 @@ class World:
             a.energy_gained += delta
 
         a.energy -= cfg.metabolic_cost * a.alive
+        brain_cost = getattr(controller, "energy_cost", None)
+        if brain_cost is not None:  # optional: controllers whose brain consumes energy
+            cost = brain_cost()
+            if cost is not None:
+                a.energy -= cost * a.alive
         a.steps_alive += a.alive
         if cfg.die_at_zero:
             dead = a.energy <= 0.0

@@ -67,6 +67,20 @@ class PlasticityConfig:
 
 
 @dataclass
+class DevelopmentConfig:
+    """Brain development: hidden neurons may be dormant at birth and wake up during life
+    when the agent has met enough "difficulty" (energy lost to stimuli: damage, poison,
+    costs). Each awake non-input neuron costs ``neuron_cost`` energy per world step. The
+    dormant flag and the wake-up threshold of every neuron are genes."""
+
+    enabled: bool = False
+    init_dormant_prob: float = 0.5  # share of hidden neurons dormant at birth (initial pop)
+    init_wake_at: float = 20.0  # difficulty needed to wake a dormant neuron (initial pop)
+    neuron_cost: float = 0.002  # energy per awake non-input neuron per world step
+    plastic_new_only: bool = False  # with plasticity: only synapses of woken neurons learn
+
+
+@dataclass
 class NetworkConfig:
     # Sensor encoding: "rate" (Bernoulli spikes), "latency" (time-to-first-spike
     # inside each tick) or "current" (intensity injected as constant current).
@@ -93,6 +107,7 @@ class NetworkConfig:
     tau_range: tuple[float, float] = (2.0, 100.0)
     neuron: NeuronConfig = field(default_factory=NeuronConfig)
     plasticity: PlasticityConfig = field(default_factory=PlasticityConfig)
+    development: DevelopmentConfig = field(default_factory=DevelopmentConfig)
 
 
 @dataclass
@@ -114,6 +129,10 @@ class MutationConfig:
     learning_rate: float = 0.1  # per-genome probability of a learning-rate change
     learning_rate_sigma: float = 0.02
     plastic_flip: float = 0.01  # per-synapse probability of switching plastic on/off
+    # Development genes (used only when network.development.enabled).
+    dormant_flip: float = 0.02  # per-neuron probability of switching dormant on/off
+    wake_at: float = 0.1  # per-neuron probability of a wake-threshold change
+    wake_at_sigma: float = 0.3  # log-normal step of that change
 
 
 @dataclass

@@ -18,7 +18,7 @@ from ..config.schema import Config
 from ..snn.network import NetworkBatch
 
 GENOME_FORMAT = "spiking_evo.genome"
-GENOME_VERSION = 2  # v2 adds learning_rate and per-synapse plastic flags; v1 still loads
+GENOME_VERSION = 3  # v2: learning_rate, plastic flags; v3: dormant, wake_at. Older load.
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,9 @@ class GenomeSpec:
     init_learning_rate: float = 0.0
     learning_rate_max: float = 1.0
     init_plastic_prob: float = 0.0
+    development: bool = False
+    init_dormant_prob: float = 0.0
+    init_wake_at: float = 0.0
 
     @classmethod
     def from_config(cls, cfg: Config, n_inputs: int, n_outputs: int) -> GenomeSpec:
@@ -66,6 +69,9 @@ class GenomeSpec:
             init_learning_rate=n.plasticity.init_learning_rate,
             learning_rate_max=n.plasticity.learning_rate_max,
             init_plastic_prob=n.plasticity.init_plastic_prob,
+            development=n.development.enabled,
+            init_dormant_prob=n.development.init_dormant_prob,
+            init_wake_at=n.development.init_wake_at,
         )
 
     @property
@@ -91,10 +97,16 @@ class Genome:
     delay: np.ndarray  # (S,) int
     plastic: np.ndarray | None = None  # (S,) bool: may this synapse change during life
     learning_rate: float = 0.0
+    dormant: np.ndarray | None = None  # (N,) bool: hidden neuron asleep at birth
+    wake_at: np.ndarray | None = None  # (N,) float: difficulty that wakes it up
 
     def __post_init__(self) -> None:
         if self.plastic is None:
             self.plastic = np.zeros(len(self.src), dtype=bool)
+        if self.dormant is None:
+            self.dormant = np.zeros(len(self.tau_m), dtype=bool)
+        if self.wake_at is None:
+            self.wake_at = np.zeros(len(self.tau_m))
 
     # -- sizes ------------------------------------------------------------------
     @property
@@ -128,6 +140,10 @@ class Genome:
             weight=rng.normal(0.0, spec.init_weight_sigma, size=src.size),
             delay=rng.integers(1, spec.max_delay + 1, size=src.size),
         )
+        if spec.development:  # extra draws only when development is on
+            hidden = np.arange(n) >= spec.n_fixed
+            g.dormant = hidden & (rng.random(n) < spec.init_dormant_prob)
+            g.wake_at = np.full(n, spec.init_wake_at)
         if spec.plastic:  # extra draws only when plasticity is on (keeps old runs identical)
             g.plastic = rng.random(src.size) < spec.init_plastic_prob
             g.learning_rate = spec.init_learning_rate
@@ -139,6 +155,8 @@ class Genome:
             self.n_outputs,
             *(a.copy() for a in self._arrays()),
             learning_rate=self.learning_rate,
+            dormant=self.dormant.copy(),
+            wake_at=self.wake_at.copy(),
         )
 
     def _arrays(self) -> tuple[np.ndarray, ...]:
@@ -165,6 +183,15 @@ class Genome:
         thresh = np.clip(np.asarray(self.v_thresh[:n], float), *spec.thresh_range)
         reset = np.minimum(np.asarray(self.v_reset[:n], float), thresh - 1e-6)
         refr = np.maximum(np.asarray(self.refractory_ms[:n], float), 0.0)
+        dormant = np.zeros(n, dtype=bool)
+        wake_at = np.zeros(n)
+        if spec.development:
+            dm = np.asarray(self.dormant, dtype=bool)
+            wa = np.asarray(self.wake_at, dtype=float)
+            if dm.shape == (self.n_neurons,) and wa.shape == (self.n_neurons,):
+                dormant = dm[:n].copy()
+                wake_at = np.maximum(wa[:n], 0.0)
+            dormant[: spec.n_fixed] = False  # inputs and outputs are always awake
 
         src = np.asarray(self.src, dtype=np.int64)
         dst = np.asarray(self.dst, dtype=np.int64)
@@ -196,6 +223,8 @@ class Genome:
             learning_rate=float(np.clip(self.learning_rate, 0.0, spec.learning_rate_max))
             if spec.plastic
             else 0.0,
+            dormant=dormant,
+            wake_at=wake_at,
         )
 
     # -- comparison / serialisation ---------------------------------------------------
@@ -208,6 +237,8 @@ class Genome:
                 for a, b in zip(self._arrays(), other._arrays(), strict=True)
             )
             and self.learning_rate == other.learning_rate
+            and np.array_equal(self.dormant, other.dormant)
+            and np.array_equal(self.wake_at, other.wake_at)
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -221,6 +252,8 @@ class Genome:
                 "v_thresh": self.v_thresh.tolist(),
                 "v_reset": self.v_reset.tolist(),
                 "refractory_ms": self.refractory_ms.tolist(),
+                "dormant": self.dormant.astype(int).tolist(),
+                "wake_at": self.wake_at.tolist(),
             },
             "synapses": {
                 "src": self.src.tolist(),
@@ -236,7 +269,7 @@ class Genome:
     def from_dict(cls, data: dict[str, Any]) -> Genome:
         if data.get("format") != GENOME_FORMAT:
             raise ValueError("not a spiking_evo genome")
-        if data.get("version") not in (1, GENOME_VERSION):
+        if data.get("version") not in (1, 2, GENOME_VERSION):
             raise ValueError(f"unsupported genome version {data.get('version')}")
         nr, sy = data["neurons"], data["synapses"]
         return cls(
@@ -252,6 +285,8 @@ class Genome:
             delay=np.array(sy["delay"], dtype=np.int64),
             plastic=np.array(sy.get("plastic", [0] * len(sy["src"])), dtype=bool),
             learning_rate=float(data.get("learning_rate", 0.0)),
+            dormant=np.array(nr["dormant"], dtype=bool) if "dormant" in nr else None,
+            wake_at=np.array(nr["wake_at"], dtype=np.float64) if "wake_at" in nr else None,
         )
 
 
@@ -269,6 +304,9 @@ def build_network_batch(genomes: list[Genome], spec: GenomeSpec) -> NetworkBatch
         refractory_ms=spec.refractory_ms,
     )
     net.active[:] = False
+    if spec.development:
+        net.dormant = np.zeros(net.active.shape, dtype=bool)
+        net.wake_at = np.zeros(net.active.shape)
     for b, g in enumerate(genomes):
         n = g.n_neurons
         net.tau_m[b, :n] = g.tau_m
@@ -276,6 +314,9 @@ def build_network_batch(genomes: list[Genome], spec: GenomeSpec) -> NetworkBatch
         net.v_reset[b, :n] = g.v_reset
         net.refractory_ms[b, :n] = g.refractory_ms
         net.active[b, :n] = True
+        if spec.development:
+            net.dormant[b, :n] = g.dormant
+            net.wake_at[b, :n] = g.wake_at
         net.weights[b, g.delay - 1, g.src, g.dst] = g.weight
     if spec.plastic:
         net.plastic = np.zeros(net.weights.shape, dtype=bool)
@@ -359,6 +400,8 @@ def adapt_genome(
         v_thresh=params(genome.v_thresh, spec.v_thresh),
         v_reset=params(genome.v_reset, spec.v_reset),
         refractory_ms=params(genome.refractory_ms, spec.refractory_ms),
+        dormant=params(genome.dormant.astype(float), 0.0) > 0.5,
+        wake_at=params(genome.wake_at, spec.init_wake_at),
         src=src,
         dst=dst,
         weight=weight,

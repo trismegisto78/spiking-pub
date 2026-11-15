@@ -154,6 +154,7 @@ class Evolution:
                 batch_offset=offset,
                 batch_total=total,
                 plasticity=cfg.network.plasticity if cfg.network.plasticity.enabled else None,
+                development=cfg.network.development if cfg.network.development.enabled else None,
                 weight_max=cfg.network.weight_max,
             )
             res = world.run_episode(controller, seed, *keys)
@@ -169,6 +170,15 @@ class Evolution:
                     [g.plastic.mean() if g.n_synapses else 0.0 for g in genomes]
                 )
                 ep_stats["brain.weight_change"] = controller.network.weight_change()
+            if cfg.network.development.enabled:
+                ep_stats["brain.dormant_at_birth"] = np.array(
+                    [float(g.dormant.sum()) for g in genomes]
+                )
+                ep_stats["brain.woken"] = controller.woken.astype(np.float64)
+                ep_stats["brain.awake_at_end"] = controller.network.awake_count(
+                    self.spec.n_inputs
+                ).astype(np.float64)
+                ep_stats["brain.difficulty"] = controller.difficulty.copy()
             stim_episodes.append(ep_stats)
             per_episode.append(
                 BehaviourStats(

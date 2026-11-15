@@ -35,7 +35,7 @@ def crossover(fitter: Genome, other: Genome, spec: GenomeSpec, rng: np.random.Ge
     child = fitter.copy()
     m = min(fitter.n_neurons, other.n_neurons)
     take = rng.random(m) < 0.5
-    for name in ("tau_m", "v_thresh", "v_reset", "refractory_ms"):
+    for name in ("tau_m", "v_thresh", "v_reset", "refractory_ms", "dormant", "wake_at"):
         getattr(child, name)[:m][take] = getattr(other, name)[:m][take]
     big = spec.n_max
     key_a = fitter.src * big + fitter.dst
@@ -61,6 +61,12 @@ def mutate(genome: Genome, spec: GenomeSpec, m: MutationConfig, rng: np.random.G
     g.v_thresh[nf:][hit] += rng.normal(0.0, m.threshold_sigma, size=int(hit.sum()))
     hit = rng.random(g.n_neurons - nf) < m.tau
     g.tau_m[nf:][hit] *= np.exp(rng.normal(0.0, m.tau_sigma, size=int(hit.sum())))
+    if spec.development:  # development genes (no draws otherwise)
+        hidden = np.arange(g.n_neurons) >= spec.n_fixed
+        hit = hidden & (rng.random(g.n_neurons) < m.dormant_flip)
+        g.dormant[hit] = ~g.dormant[hit]
+        hit = rng.random(g.n_neurons) < m.wake_at
+        g.wake_at[hit] *= np.exp(rng.normal(0.0, m.wake_at_sigma, size=int(hit.sum())))
     if spec.plastic:  # plasticity genes (no draws otherwise: non-plastic runs unchanged)
         if rng.random() < m.learning_rate:
             g.learning_rate += rng.normal(0.0, m.learning_rate_sigma)
@@ -119,6 +125,8 @@ def add_neuron(g: Genome, spec: GenomeSpec, rng: np.random.Generator) -> Genome:
         ("v_thresh", spec.v_thresh),
         ("v_reset", spec.v_reset),
         ("refractory_ms", spec.refractory_ms),
+        ("dormant", False),
+        ("wake_at", spec.init_wake_at),
     ):
         setattr(h, name, np.append(getattr(h, name), val))
     if h.n_synapses > 0:
@@ -142,7 +150,7 @@ def remove_neuron(g: Genome, spec: GenomeSpec, rng: np.random.Generator) -> Geno
         return g
     k = int(rng.integers(spec.n_fixed, g.n_neurons))
     h = g.copy()
-    for name in ("tau_m", "v_thresh", "v_reset", "refractory_ms"):
+    for name in ("tau_m", "v_thresh", "v_reset", "refractory_ms", "dormant", "wake_at"):
         setattr(h, name, np.delete(getattr(h, name), k))
     keep = (h.src != k) & (h.dst != k)
     h = _select_synapses(h, keep)
