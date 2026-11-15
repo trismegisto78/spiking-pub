@@ -1,0 +1,41 @@
+# Stage D1: one shared 50x50 world, continuous time, births and deaths, no fitness function.
+# Juveniles are fragile (slow, more damage, cannot reproduce); life-history genes evolve.
+experiment: eco_d1
+seed: 1
+world:
+  width: 50
+  height: 50
+agent:
+  initial_energy: 60.0
+  metabolic_cost: 0.05
+  move_cost: 0.02
+stimuli:
+  - type: body                # own energy and juvenile flag
+  - type: food
+    count: 120
+    regrow_rate: 0.02
+  - type: hazard
+    count: 6
+    radius: 2.5
+    damage: [1.0, 3.0]
+network:
+  encoder: rate
+  hidden_max: 30
+  hidden_init: 5
+genetics:
+  mutation: { weight: 0.1, threshold: 0.05, add_synapse: 0.02, remove_synapse: 0.01 }
+ecosystem:
+  capacity: 300
+  # start from foragers evolved in food_hazard_50_d3 (random brains go extinct)
+  init_from: spiking_evo/experiments/seed_populations/foragers.json.gz
+  initial_population: 120
+  ticks: 50000
+  log_every: 250
+  snapshot_every: 10000
+  max_age: 3000
+  juvenile_speed: 0.5
+  juvenile_damage: 2.0
+  init_repro_threshold: 100.0
+  init_endowment: 0.5
+  init_clutch: 2
+  init_juvenile_age: 150.0

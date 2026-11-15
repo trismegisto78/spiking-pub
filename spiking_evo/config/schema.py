@@ -174,6 +174,39 @@ class MetricsConfig:
 
 
 @dataclass
+class EcosystemConfig:
+    """Continuous, shared-world evolution (stage D): births, deaths, no fitness function.
+    Used by `spiking-evo ecosystem`; ignored by the generational runs."""
+
+    capacity: int = 300  # maximum number of living agents (slots)
+    # Start from an existing species: a run directory or checkpoint (.json/.json.gz) whose
+    # genomes seed the initial population (adapted to this world's senses). Empty = random.
+    init_from: str = ""
+    initial_population: int = 120
+    ticks: int = 50000
+    log_every: int = 250
+    snapshot_every: int = 10000  # 0 = only at the end
+    max_age: int = 3000  # agents die of old age
+    juvenile_speed: float = 0.5  # share of steps on which a juvenile may move
+    juvenile_damage: float = 2.0  # multiplier of the energy juveniles lose to stimuli
+    juvenile_can_act: bool = False  # may juveniles use the action outputs (e.g. farm)
+    repro_overhead: float = 0.1  # share of the endowment lost in reproduction
+    repro_cooldown: int = 30  # minimum steps between two reproductions of an agent
+    spawn_radius: int = 1  # offspring appear within this distance of the parent
+    # Life-history genes of the initial population (they evolve, within the bounds).
+    init_repro_threshold: float = 100.0  # energy needed to reproduce
+    init_endowment: float = 0.5  # share of the parent's energy given to the offspring
+    init_clutch: int = 2  # offspring per reproduction
+    init_juvenile_age: float = 150.0  # steps spent as a juvenile
+    repro_threshold_range: tuple[float, float] = (20.0, 500.0)
+    endowment_range: tuple[float, float] = (0.05, 0.9)
+    clutch_max: int = 6
+    juvenile_age_range: tuple[float, float] = (0.0, 1000.0)
+    trait_sigma: float = 0.1  # log-normal mutation step of the continuous traits
+    clutch_change: float = 0.1  # probability that clutch size changes by +-1 at birth
+
+
+@dataclass
 class Config:
     experiment: str = "unnamed"
     seed: int = 0
@@ -190,3 +223,4 @@ class Config:
     # lists such as ``stimuli`` are replaced as a whole). The population carries over:
     # genomes are adapted to new senses.
     phases: list[dict[str, Any]] = field(default_factory=list)
+    ecosystem: EcosystemConfig = field(default_factory=EcosystemConfig)

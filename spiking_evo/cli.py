@@ -17,6 +17,7 @@ import dataclasses
 import json
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -125,6 +126,29 @@ def cmd_behaviour(args) -> int:
     return 0
 
 
+def cmd_ecosystem(args) -> int:
+    from .ecosystem import Ecosystem
+
+    cfg = _load(args)
+    out = Path(_out(args) or "runs") / cfg.experiment / str(cfg.seed)
+    print(f"[ecosystem] {cfg.experiment} seed={cfg.seed} -> {out}")
+
+    def progress(row: dict) -> None:
+        if not args.quiet:
+            print(
+                f"tick {row['tick']:7d}  pop {row['population']:4d}  juv {row['juveniles']:4d}  "
+                f"births {row['births']:4d}  deaths {row['deaths_starvation']:4d}+"
+                f"{row['deaths_old_age']:<3d} gen {row['max_generation']:4d}  "
+                f"lineages {row['lineages']:3d}  clutch {row['clutch_mean']:.2f}  "
+                f"endow {row['endowment_mean']:.2f}  thr {row['repro_threshold_mean']:6.1f}  "
+                f"{row['elapsed_s']:.0f}s",
+                flush=True,
+            )
+
+    Ecosystem(cfg, out).run(ticks=args.ticks, progress=progress)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="spiking-evo")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -176,6 +200,14 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--episodes", type=int, default=50)
     b.add_argument("--json", help="also write the report as JSON")
     b.set_defaults(func=cmd_behaviour)
+
+    k = sub.add_parser("ecosystem", help="continuous shared-world evolution (stage D)")
+    k.add_argument("config")
+    k.add_argument("--seed", type=int)
+    k.add_argument("--ticks", type=int)
+    k.add_argument("--out")
+    k.add_argument("--quiet", action="store_true")
+    k.set_defaults(func=cmd_ecosystem)
 
     c = sub.add_parser("cpus", help="print the number of CPUs available to this container")
     c.set_defaults(func=lambda a: print(available_cpus()) or 0)

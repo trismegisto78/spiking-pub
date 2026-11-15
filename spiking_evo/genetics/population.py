@@ -366,7 +366,13 @@ def load_population(path: str | Path) -> tuple[list[Genome], list[str]]:
 
     path = Path(path)
     ckpt_path = path / "checkpoint.json" if path.is_dir() else path
-    data = json.loads(ckpt_path.read_text(encoding="utf-8"))
+    if ckpt_path.suffix == ".gz":
+        import gzip
+
+        with gzip.open(ckpt_path, "rt", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = json.loads(ckpt_path.read_text(encoding="utf-8"))
     names = data.get("input_names")
     if not names:  # older checkpoints: recompute from the run's config.yaml
         raw = yaml.safe_load((ckpt_path.parent / "config.yaml").read_text(encoding="utf-8"))

@@ -146,6 +146,8 @@ class World:
         a.alive[:] = True
         a.energy_gained[:] = 0.0
         a.steps_alive[:] = 0
+        a.age[:] = 0
+        a.stage[:] = 0
         self.visited.fill(False)
         self._mark_visited()
         self.clock.reset()
@@ -194,6 +196,7 @@ class World:
             if cost is not None:
                 a.energy -= cost * a.alive
         a.steps_alive += a.alive
+        a.age += a.alive
         if cfg.die_at_zero:
             dead = a.energy <= 0.0
             a.alive &= ~dead
@@ -220,6 +223,34 @@ class World:
             steps_alive=a.steps_alive.copy(),
             visited_cells=self.visited.sum(axis=(1, 2)),
         )
+
+    def spawn(
+        self,
+        slots: np.ndarray,
+        x: np.ndarray,
+        y: np.ndarray,
+        heading: np.ndarray,
+        energy: np.ndarray,
+        stage: np.ndarray | int = 0,
+    ) -> None:
+        """Bring new agents to life in the given (dead) slots, during a simulation.
+
+        Used by the ecosystem (births); the generational runs never call it."""
+        a = self.agents
+        slots = np.asarray(slots, dtype=np.int64)
+        if a.alive[slots].any():
+            raise ValueError("spawn: slot already occupied by a living agent")
+        a.x[slots], a.y[slots] = self.wrap_or_clip(np.asarray(x), np.asarray(y))
+        a.heading[slots] = np.asarray(heading) % 4
+        a.energy[slots] = energy
+        a.alive[slots] = True
+        a.energy_gained[slots] = 0.0
+        a.steps_alive[slots] = 0
+        a.age[slots] = 0
+        a.stage[slots] = stage
+        a.action[slots] = False
+        self.visited[slots] = False
+        self.visited[slots, a.y[slots], a.x[slots]] = True
 
     def _mark_visited(self) -> None:
         a = self.agents

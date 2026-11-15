@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 140, tutti verdi; `ruff` pulito |
+| Test | 147, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -430,6 +430,46 @@ almeno 24–32 seed per condizione, e conviene dichiarare prima quale test si us
 
 Lo sviluppo in sé funziona come previsto (circa 5 neuroni dormienti alla nascita, 4 svegliati
 durante la vita) ma, con questi parametri, non dà né un vantaggio né uno svantaggio misurabile.
+
+### Tappa D1: ecosistema con nascite e morti (15/11/2026)
+
+Nuovo modo di simulare, `spiking-evo ecosystem CONFIG` (`spiking_evo/ecosystem/sim.py`): un
+solo mondo condiviso, tempo continuo, nessun punteggio. Le creature nascono, crescono,
+si riproducono, invecchiano e muoiono; si diffonde ciò che lascia discendenti vivi.
+
+- **Riproduzione**: un adulto con energia sopra la soglia (gene) genera `clutch` figli (gene)
+  accanto a sé, cedendo una quota della sua energia (`endowment`, gene; il 10% va perso).
+  Figli = genoma del genitore con mutazioni, geni del ciclo di vita mutati.
+- **Piccoli fragili** per `juvenile_age` passi (gene): metà velocità, doppio danno dagli
+  stimoli, niente azioni, niente riproduzione.
+- **Morte** per fame o per età massima (3000 passi).
+- Nuovo stimolo `body`: la creatura sente la propria energia e se è piccola.
+- Modifiche al core (generiche): `age` e `stage` negli agenti, `World.spawn` per far nascere
+  creature in posti liberi; il controller sostituisce le reti senza azzerare lo stato dei vivi.
+- Con cervelli casuali la popolazione si estingue in ~3000 passi (non trovano cibo): si parte
+  da una specie esistente, `ecosystem.init_from` →
+  `experiments/seed_populations/foragers.json.gz` (raccoglitori evoluti in
+  `food_hazard_50_d3`, seed 3, 300 generazioni).
+
+Prima prova (`eco_d1.yaml`, seed 1, 50 000 passi, ~3.5 minuti in locale):
+
+| passo | popolazione | generazioni | discendenze | figli per parto | dote | energia per riprodursi | infanzia (passi) |
+|---|---|---|---|---|---|---|---|
+| 250 | 121 | 1 | 115 | 2.00 | 0.50 | 100 | 151 |
+| 10 000 | 85 | 9 | 11 | 2.16 | 0.56 | 85 | 158 |
+| 20 000 | 92 | 16 | 4 | 1.92 | 0.66 | 60 | 199 |
+| 30 000 | 107 | 31 | 1 | 1.64 | 0.71 | 48 | 197 |
+| 50 000 | 105 | 50 | 1 | 1.69 | 0.47 | 41 | 113 |
+
+- La popolazione è stabile (min 35, media 105, max 136 su 300 posti); intorno al passo 3000
+  la generazione iniziale muore quasi tutta di vecchiaia insieme e i discendenti la
+  rimpiazzano.
+- Una sola discendenza (dei 120 fondatori) conquista tutto entro il passo 30 000.
+- I geni del ciclo di vita evolvono: le creature si riproducono prima (soglia da 100 a 41
+  energia) e per un lungo tratto fanno **meno figli con più dote** (1.6 figli, 71% della
+  propria energia) e un'infanzia più lunga; alla fine dote e infanzia tornano a scendere.
+- Un solo seed: tendenze da confermare. Prossimo passo D2: crescita del cervello che costa
+  energia, senso della parentela, azione "nutri".
 
 ## 3. Mappa del codice
 

@@ -77,6 +77,41 @@ class SNNController:
         self.output_spikes = np.zeros((b, net.n_outputs), dtype=np.int64)
         self.snn_steps = 0
 
+    def replace_networks(self, net: NetworkBatch, keep: np.ndarray) -> None:
+        """Swap in a rebuilt batch of networks (e.g. after births in an ecosystem) while
+        keeping the running state (membrane, refractoriness, spike history, woken neurons,
+        counters) of the slots in ``keep``; the other slots start fresh. Plasticity
+        eligibility is reset, since the synapse list changes."""
+        old = self.network
+        new = SpikingNetwork(
+            net,
+            self.dt_ms,
+            plasticity=self.plasticity if old.learns or self.plasticity else None,
+            weight_max=old._wmax if old.learns else 5.0,
+            plastic_new_only=bool(self.development and self.development.plastic_new_only),
+        )
+        keep = np.asarray(keep, dtype=bool)
+        new.v[keep] = old.v[keep]
+        new.ref[keep] = old.ref[keep]
+        new._history[:, keep] = old._history[:, keep]
+        new._ptr = old._ptr
+        if new.develops and old.develops:
+            new._thresh[keep] = old._thresh[keep]
+            new.awake[keep] = old.awake[keep]
+        if new.learns and old.learns:
+            new._trace.reshape(net.batch, -1)[keep] = old._trace.reshape(net.batch, -1)[keep]
+        self.net = net
+        self.network = new
+        fresh = ~keep
+        for arr in (self.difficulty, self.woken, self._reward_baseline, self.noninput_spikes,
+                    self.active_steps):  # fmt: skip
+            arr[fresh] = 0
+        self.output_spikes[fresh] = 0
+        noninput = net.active.copy()
+        noninput[:, : net.n_inputs] = False
+        self._noninput = noninput
+        self.n_noninput = noninput.sum(axis=1)
+
     def reset(self) -> None:
         self.network.reset()
         self.difficulty.fill(0.0)

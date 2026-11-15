@@ -35,6 +35,17 @@ class Agents:
     # (A, K) bool: generic actions requested this step (K = network.action_outputs). The core
     # does not interpret them; stimuli may react to them in ``interact``.
     action: np.ndarray
+    # Life history (used by the ecosystem; inert in generational runs): age in world steps
+    # and life stage (0 = adult, 1 = juvenile). Stimuli may read them.
+    age: np.ndarray | None = None  # (A,) int
+    stage: np.ndarray | None = None  # (A,) int
+
+    def __post_init__(self) -> None:
+        n = len(self.x)
+        if self.age is None:
+            self.age = np.zeros(n, dtype=np.int64)
+        if self.stage is None:
+            self.stage = np.zeros(n, dtype=np.int64)
 
     @classmethod
     def create(cls, n: int, arena: np.ndarray, initial_energy: float, n_actions: int = 0) -> Agents:
