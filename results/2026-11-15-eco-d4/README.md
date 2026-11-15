@@ -15,7 +15,7 @@ Test pre-registrati (permutazione, unilaterali):
 - H2 nutrire cresce di più con cure: non supportato, p = 0.584.
 - H3 meno piccoli morti con cure: non supportato, p = 0.339.
 
-Lettura: dove nutrire costa energia al donatore, la selezione lo *elimina* (nel 20/24 dei mondi
-sopravvissuti scende quasi a zero); dove non costa nulla (controllo) il gesto deriva liberamente.
+Lettura: dove nutrire costa energia al donatore, la selezione lo *elimina* (in 15 dei 24 mondi
+sopravvissuti scende sotto 5); dove non costa nulla (controllo) il gesto deriva liberamente.
 Il dono non porta un vantaggio genetico perché con kin_only false si nutrono piccoli qualsiasi e
 la popolazione è sempre al tetto (300): un piccolo salvato non aumenta i discendenti propri.
