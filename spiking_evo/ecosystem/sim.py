@@ -43,6 +43,7 @@ from ..stimuli.registry import build_stimuli
 
 LOG_COLUMNS = [
     "tick", "population", "juveniles", "births", "deaths_starvation", "deaths_old_age",
+    "deaths_juvenile",
     "mean_age", "mean_age_at_death", "mean_energy", "max_generation", "lineages",
     "repro_threshold_mean", "endowment_mean", "clutch_mean", "juvenile_age_mean",
     "hidden_mean", "synapses_mean", "food_eaten", "hazard_steps",
@@ -203,7 +204,8 @@ class Ecosystem:
         self._update_stage()
 
     def _empty_window(self) -> dict:
-        return {"births": 0, "deaths_starvation": 0, "deaths_old_age": 0, "death_ages": []}
+        return {"births": 0, "deaths_starvation": 0, "deaths_old_age": 0, "deaths_juvenile": 0,
+                "death_ages": []}  # fmt: skip
 
     # -- one step -----------------------------------------------------------------------
     def _update_stage(self) -> None:
@@ -231,6 +233,7 @@ class Ecosystem:
         w = self._window
         w["deaths_old_age"] += int(old.sum())
         w["deaths_starvation"] += int((died & ~old).sum())
+        w["deaths_juvenile"] += int((died & (a.stage == 1)).sum())
         w["death_ages"].extend(a.age[died].tolist())
         self._grow()
         self._reproduce()
@@ -351,6 +354,7 @@ class Ecosystem:
             "births": w["births"],
             "deaths_starvation": w["deaths_starvation"],
             "deaths_old_age": w["deaths_old_age"],
+            "deaths_juvenile": w["deaths_juvenile"],
             "mean_age": mean(a.age),
             "mean_age_at_death": float(np.mean(w["death_ages"])) if w["death_ages"] else "",
             "mean_energy": mean(a.energy),
