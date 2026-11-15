@@ -107,7 +107,7 @@ run ininterrotto. Ogni run scrive `run.log` nella propria cartella; un riepilogo
 
 ```bash
 docker build --platform=linux/amd64 --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
-    -t <registry>/spiking-evo:0.1.0 spiking-evo/
+    -t <registry>/spiking-evo:0.1.0 .
 docker push <registry>/spiking-evo:0.1.0
 ```
 
@@ -128,7 +128,8 @@ viene fermato o interrotto, al riavvio lo sweep riprende da solo. A sweep finito
 
 ### Opzione B: immagine standard, senza build
 
-Su un pod con Python 3.11+, clona il repository dentro `/workspace` e:
+Su un pod con Python 3.11+, clona `https://github.com/trismegisto78/spiking-evo` dentro
+`/workspace` e:
 
 ```bash
 bash spiking-evo/runpod/setup_on_pod.sh

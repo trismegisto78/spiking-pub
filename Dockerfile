@@ -1,6 +1,6 @@
 # CPU image for Runpod pods (or any Docker host). Build for the Runpod architecture:
 #   docker build --platform=linux/amd64 --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
-#       -t <registry>/spiking-evo:<tag> spiking-evo/
+#       -t <registry>/spiking-evo:<tag> .
 FROM python:3.12.8-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \

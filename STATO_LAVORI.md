@@ -19,10 +19,10 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 
 Dove sta il codice oggi:
 
-- repository `trismegisto78/digital-projects`, cartella `spiking-evo/`
-- branch `claude/new-session-2nioep`
-- PR in bozza [#7](https://github.com/trismegisto78/digital-projects/pull/7), non ancora
-  mergiata (nessuna CI configurata nel repository)
+- repository dedicato [`trismegisto78/spiking-evo`](https://github.com/trismegisto78/spiking-evo),
+  branch `main`
+- la cronologia è stata estratta da `trismegisto78/digital-projects` (cartella
+  `spiking-evo/`, PR in bozza #7), che non è più la copia di riferimento
 
 La specifica originale è in [`SPEC.md`](SPEC.md); il README spiega uso e scelte di progetto.
 
@@ -66,7 +66,7 @@ Un baseline da 300 generazioni dura circa 6.5 minuti su un core.
 ## 3. Mappa del codice
 
 ```
-spiking-evo/
+spiking-evo/                (radice del repository)
 ├── SPEC.md                 specifica originale
 ├── README.md               uso, scelte di progetto, sezione Runpod
 ├── STATO_LAVORI.md         questo file
@@ -145,33 +145,17 @@ codice.
 
 ## 5. Come lavorare sul tuo PC
 
-### Passo 1: portare il codice in un progetto dedicato (consigliato)
+### Passo 1: clonare il repository
 
-1. Crea su GitHub un repository **vuoto** (senza README, licenza o .gitignore), per esempio
-   `spiking-evo`.
-2. Sposta la cartella come radice del nuovo repo conservando la cronologia. Da un clone di
-   `digital-projects`:
-
-   ```bash
-   git fetch origin claude/new-session-2nioep
-   git checkout claude/new-session-2nioep
-   git subtree split --prefix=spiking-evo -b spiking-evo-only
-   git push https://github.com/<utente>/spiking-evo.git spiking-evo-only:main
-   ```
-
-   (Oppure chiedi a Claude di farlo, indicando il nome del repo creato.)
-3. Decidi cosa fare della PR #7 su `digital-projects`: chiuderla se il progetto vive ormai nel
-   repo nuovo, oppure mergiarla se vuoi tenerne una copia lì.
-
-Alternativa rapida senza nuovo repo: clona `digital-projects`, fai checkout del branch
-`claude/new-session-2nioep` e lavora nella sottocartella `spiking-evo/`.
+Il progetto vive nel repository dedicato `trismegisto78/spiking-evo` (fatto il 15/11/2026,
+cronologia dei commit conservata).
 
 ### Passo 2: installazione (PowerShell su Windows, o terminale su macOS/Linux)
 
 Serve Python 3.11 o superiore.
 
 ```powershell
-git clone https://github.com/<utente>/spiking-evo.git
+git clone https://github.com/trismegisto78/spiking-evo.git
 cd spiking-evo
 python -m venv .venv
 .venv\Scripts\Activate.ps1          # macOS/Linux: source .venv/bin/activate
@@ -305,7 +289,7 @@ oggi non sono registrate, solo il conteggio delle celle visitate.
 - Le uscite motorie sono fisse a 4.
 - Il riepilogo della fitness non include ancora intervalli tra seed: arriva con lo script di
   analisi.
-- La PR #7 non ha CI: conviene aggiungere un workflow GitHub Actions con `pytest` e `ruff`
+- Il repository non ha CI: conviene aggiungere un workflow GitHub Actions con `pytest` e `ruff`
   nel nuovo repository.
 
 ---
