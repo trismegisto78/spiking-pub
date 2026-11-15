@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 117, tutti verdi; `ruff` pulito |
+| Test | 120, tutti verdi; `ruff` pulito |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -267,6 +267,37 @@ Cosa tenere presente salendo ancora:
   conviene ridurre il tipo dei dati delle griglie o passare a strutture sparse;
 - su griglie grandi un episodio da 1000 passi copre una parte piccola del mondo: valuta di
   aumentare `world.steps_per_episode` e `sense_radius` insieme alla griglia.
+
+### Conferma con 6 seed (15/11/2026)
+
+Sweep: 5 esperimenti × 6 seed × 300 generazioni (30 run, ~2 ore su 4 core). Report completo,
+grafici e test comportamentali in `results/2026-11-15-conferma/` (rigenerabile con
+`spiking-evo analyze runs --out report`). Medie sulle ultime 10 generazioni, ± std tra seed.
+
+| esperimento | fitness | vive | cosa si conferma |
+|---|---|---|---|
+| `food_hazard_50_d3` | 414 ± 67 | 99% | evitamento dei pericoli in tutti i seed: 15 passi su 1000 nei pericoli (1.5%, zone ~7%) |
+| `terrain_50_easy` | 2898 ± 917 | 59% | agricoltura in 6 seed su 6; la sopravvivenza non migliora |
+| `terrain_50_crops` | 3145 ± 3522 | 82% | **due destini**: 4 seed coltivano, 2 restano raccoglitori di cibo selvatico |
+| `terrain_50_seasons` | 3653 ± 1627 | 72% | agricoltura in 6 seed su 6, jackpot raccolto ~42 volte per episodio |
+| `terrain_50_spicy` | 1346 ± 1313 | 80% | **due destini**: 3 seed coltivano, 3 raccolgono soltanto (e sopravvivono di più: 89–98% contro 59–76%) |
+
+Cosa **non** si conferma o va ridimensionato:
+- l'adattamento stagionale visto col seed 42 (azioni 88% d'estate contro 72% d'inverno) è
+  debole sugli altri seed: tra 0 e 9 punti percentuali di differenza. Nel test comportamentale
+  dell'agricoltore migliore (spicy seed 3) rendere la creatura cieca alla stagione non cambia
+  nulla: il senso della stagione non viene usato;
+- i risultati di un singolo seed su terreno e stagioni non sono affidabili: tra seed la fitness
+  varia di un ordine di grandezza.
+
+Test comportamentali (30 episodi nuovi):
+- evitatore di pericoli (hazard seed 1): cieco ai pericoli passa 5.5 volte più tempo nelle zone
+  (63.6 passi contro 11.6); cieco al cibo raccoglie un quinto dell'energia;
+- agricoltore (spicy seed 3): cieco al terreno sopravvive il 23% invece del 70% e dimezza i
+  raccolti; cieco ai pericoli ci passa 15 volte più tempo; cieco alle stagioni: nessun effetto.
+
+Prossimo passo proposto: continuità tra ambienti (popolazione che porta con sé ciò che ha
+imparato) e plasticità sinaptica durante la vita.
 
 ## 3. Mappa del codice
 
