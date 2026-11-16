@@ -1,4 +1,6 @@
-"""Stage D5 (kin-only, food-limited) analysis. Hypotheses and tests fixed before running (pre-registered):
+"""Stage D5 (kin-only, food-limited) analysis.
+
+Hypotheses and tests fixed before running (pre-registered):
 
 Two conditions, 32 seeds each, 200 000 ticks: eco_d5_care (feeding transfers energy) and
 eco_d5_control (feed_amount 0: the action exists but does nothing). Per run, from
@@ -87,7 +89,8 @@ for name in ("eco_d5_care", "eco_d5_control"):
     print()
     for f, r in zip(sorted((ROOT / name).glob("*/ecosystem.csv")), runs, strict=True):
         if not r["extinct"]:
-            print(f"   {f.parent.name:>3s} " + " ".join(f"{k}={r[k]:.3f}" for k in r if k != "extinct"))
+            vals = " ".join(f"{k}={r[k]:.3f}" for k in r if k != "extinct")
+            print(f"   {f.parent.name:>3s} {vals}")
 
 
 def v(name, key):

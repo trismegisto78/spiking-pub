@@ -87,7 +87,8 @@ for name in ("eco_d4_care", "eco_d4_control"):
     print()
     for f, r in zip(sorted((ROOT / name).glob("*/ecosystem.csv")), runs, strict=True):
         if not r["extinct"]:
-            print(f"   {f.parent.name:>3s} " + " ".join(f"{k}={r[k]:.3f}" for k in r if k != "extinct"))
+            vals = " ".join(f"{k}={r[k]:.3f}" for k in r if k != "extinct")
+            print(f"   {f.parent.name:>3s} {vals}")
 
 
 def v(name, key):

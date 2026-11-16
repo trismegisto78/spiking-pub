@@ -42,6 +42,7 @@ Pezzi chiave:
 
 | tappa | esito |
 |---|---|
+| baseline solo cibo (8 seed, notebook) | strategia evoluta = **veicolo di Braitenberg** (gira verso il lato col cibo); plateau ~550 dalla gen 200 |
 | Milestone 1–2 (cibo, pericoli, terreno, raccolti, stagioni) | le creature imparano a evitare i pericoli; l'agricoltura emerge solo se il terreno è abbastanza facile |
 | A. continuità tra ambienti | **aiuta molto**: chi arriva con una storia evolutiva fa ~6 volte meglio di chi parte da zero |
 | B. plasticità (STDP con ricompensa) | **non aiuta**; l'evoluzione abbassa la velocità di apprendimento |
@@ -66,9 +67,15 @@ simulazione lunga può dire se la selezione lo fa crescere.
 
 ## 5. Richieste aperte dell'utente
 
-- **Far girare sul suo notebook** (NOTEBOOK-ALE, probabilmente Windows; core da verificare).
+- **Far girare sul suo notebook** (NOTEBOOK-ALE: Windows 11, Python 3.12, **16 core logici**;
+  i 150 test passano lì, verificato il 16/11/2026 con il commit "Baseline with 8 seeds…").
+  Tempi stimati per D6 in locale, a circa 25–35 min per mondo per core: 8+8 mondi in circa
+  35–45 min (un turno); 16+16 in circa 1–1.5 h (due turni). Comando:
+  `python -m spiking_evo ecosystem spiking_evo/experiments/eco_d6_care.yaml --seed N` (un
+  processo per mondo), oppure uno script che li lanci in parallelo come `runpod/eco_job.sh`.
   Dalle sessioni cloud le sue cartelle (`spike`, …) non risultavano utilizzabili: o si aggiorna
-  l'app Claude sul notebook, o si apre la sessione direttamente lì.
+  l'app Claude sul notebook, o si apre la sessione direttamente lì (consigliato per GUI e run
+  locali).
 - **GUI** per guardare l'evoluzione: comando `python -m spiking_evo watch` che apre nel browser
   (senza dipendenze extra: `http.server` + canvas JS)
   1. il mondo dal vivo: griglia, adulti e piccoli con colori diversi, linee genitore-figlio,
