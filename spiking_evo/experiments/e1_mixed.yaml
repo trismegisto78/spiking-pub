@@ -1,6 +1,6 @@
-# Stage E1, unrelated individuals + signal ON. 400 genomes, groups of 10 re-drawn at
+# Stage E1, unrelated individuals + signal ON. 400 genomes, groups of 5 re-drawn at
 # random every episode, individual selection.
-# Shared by the four E1 conditions (2x2: relatedness x channel): the E0 world (groups of 10,
+# Shared by the four E1 conditions (2x2: relatedness x channel): the E0 world (but groups of 5,
 # 40x40, 60 food items in 3 patches that relocate every 250 steps, food sensed within 2 cells,
 # the others within 6), plus a `signal` channel: one generic action output; an agent whose
 # action fires emits for that step (cost 0.01) and the group hears it at the next step within
@@ -13,7 +13,7 @@ world:
   height: 40
   steps_per_episode: 1000
   arenas: groups
-  group_size: 10
+  group_size: 5
   group_shuffle: true
   same_start: false
 stimuli:

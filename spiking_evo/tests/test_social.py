@@ -180,3 +180,33 @@ def test_food_patch_is_eaten_like_food():
     put(w, 0, int(cx), int(cy))
     assert food.interact(w.agents, w)[0] == pytest.approx(50.0)  # all 10 on the center
     assert food.grid.sum() == 0 and not food.present.any()
+
+
+def test_others_tracks_mean_distance_to_living_groupmates():
+    others = OthersStimulus(track_distance=True)
+    w = make_world([others], 4, group_size=3, size=20)
+    put(w, 0, 0, 0, arena=0)
+    put(w, 1, 3, 0, arena=0)  # distance 3 from agent 0
+    put(w, 2, 0, 4, arena=0)  # distance 4 from agent 0, 5 from agent 1
+    put(w, 3, 19, 0, arena=1)  # alone in its arena: no mates, no sample
+    others.interact(w.agents, w)
+    w.agents.alive[2] = False
+    others.interact(w.agents, w)
+    d = others.episode_stats()["mate_distance"]
+    # agent 0: step 1 mean(3, 4) = 3.5, step 2: 3 -> 3.25; agent 1: (4 + 3) / 2 = 3.5
+    assert d[:2] == pytest.approx([3.25, 3.5])
+    assert d[2] == pytest.approx(4.5)  # only alive at step 1: mean(4, 5)
+    assert np.isnan(d[3])
+
+
+def test_others_without_tracking_reports_nothing():
+    assert OthersStimulus().episode_stats() == {}
+
+
+def test_others_distance_wraps_around_the_torus():
+    others = OthersStimulus(track_distance=True)
+    w = make_world([others], 2, group_size=2, size=20)
+    put(w, 0, 0, 0, arena=0)
+    put(w, 1, 19, 19, arena=0)  # one diagonal step across the edges
+    others.interact(w.agents, w)
+    assert others.episode_stats()["mate_distance"] == pytest.approx([2**0.5, 2**0.5])

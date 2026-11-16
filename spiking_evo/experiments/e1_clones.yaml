@@ -1,6 +1,6 @@
-# Stage E1, kin groups + signal ON. Every genome lives as 10 clones in one group world
+# Stage E1, kin groups + signal ON. Every genome lives as 5 clones in one group world
 # (genetics.clones), fitness = group mean: selection between groups of relatives.
-# Shared by the four E1 conditions (2x2: relatedness x channel): the E0 world (groups of 10,
+# Shared by the four E1 conditions (2x2: relatedness x channel): the E0 world (but groups of 5,
 # 40x40, 60 food items in 3 patches that relocate every 250 steps, food sensed within 2 cells,
 # the others within 6), plus a `signal` channel: one generic action output; an agent whose
 # action fires emits for that step (cost 0.01) and the group hears it at the next step within
@@ -13,7 +13,7 @@ world:
   height: 40
   steps_per_episode: 1000
   arenas: groups
-  group_size: 10
+  group_size: 5
   group_shuffle: false
   same_start: false
 stimuli:
@@ -37,8 +37,8 @@ network:
   hidden_max: 30
   action_outputs: 1
 genetics:
-  population: 40
-  clones: 10
+  population: 80
+  clones: 5
   generations: 300
   tournament_size: 3
   elitism: 2

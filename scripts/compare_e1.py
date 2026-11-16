@@ -1,35 +1,40 @@
-"""Stage E1 analysis: does a signal that carries information evolve, and does kinship matter?
+"""Stage E1 analysis: does a useful signal evolve, what does it say, does kinship matter?
 
-Hypotheses and tests fixed before running (pre-registered, 16/11/2026):
+Hypotheses and tests fixed before running (pre-registered 16/11/2026, revised after the
+calibration pilots and before any full run; see STATO_LAVORI.md, E1):
 
-2x2 design, seeds 1-24 per condition, 300 generations, the E0 world (groups of 10 agents,
-patchy relocating food sensed within 2 cells, the others sensed within 6) plus a `signal`
-channel (one action output, emit cost 0.01, heard by the group at the next step within 6
-cells). 400 agents per generation in every condition.
-    e1_clones       groups of 10 clones of one genome, fitness = group mean, signal heard
+2x2 design, seeds 1-24 per condition, 300 generations, the E0 world but in groups of 5
+agents (patchy relocating food sensed within 2 cells, the others sensed within 6), plus a
+`signal` channel (one action output, emit cost 0.01, heard by the group at the next step
+within 6 cells). 400 agents per generation in every condition.
+    e1_clones       groups of 5 clones of one genome (80 genomes), fitness = group mean,
+                    signal heard
     e1_clones_mute  same, signal.sense_gain 0 (nobody hears anything)
-    e1_mixed        400 unrelated genomes, groups re-drawn every episode, individual
+    e1_mixed        400 unrelated genomes, groups of 5 re-drawn every episode, individual
                     selection, signal heard
     e1_mixed_mute   same, mute
 
 Per run, on the final population (checkpoint.json) evaluated as in evolution on 10 fresh
 episodes (generation keys >= 10^6, never used during evolution), pooling all agents:
+    blind_cost      = energy gained (normal) - energy gained when deaf to `signal` (same
+                      population, same episodes; emitting and its cost unchanged)
     informativeness = P(emit | fed) - P(emit | unfed), where fed = energy gained from the
                       stimuli in one of the last 10 steps (signal.* episode statistics)
     emission_rate   = emissions / living agent-steps
-    blind_cost      = energy gained (normal) - energy gained when deaf to `signal`
-                      (same population, same episodes; emitting and its cost unchanged)
+    mate_distance   = mean distance to the living group-mates (others.track_distance)
     energy_late     = mean of energy_gained_mean over the last 20 generations (generations.csv)
 
-H1 (an informative signal evolves among kin): informativeness higher in e1_clones than in
-    e1_clones_mute. One-sided permutation test on seed-level values.
-H2 (kin use the signal): blind_cost > 0 in e1_clones. One-sided sign-flip test on the
+H1 (main: kin use the signal): blind_cost > 0 in e1_clones. One-sided sign-flip test on the
     per-seed values.
-H3 (kinship matters): informativeness higher in e1_clones than in e1_mixed. One-sided
-    permutation test.
-All tests: 20 000 permutations, alpha 0.05, no correction (three distinct questions).
-Exploratory, no test: energy_late, emission_rate and informativeness in all four
-conditions; e1_mixed vs e1_mixed_mute; blind_cost in e1_mixed.
+H2 (the signal pays among kin): energy_late higher in e1_clones than in e1_clones_mute.
+H3 (the signal says "food here"): informativeness higher in e1_clones than in
+    e1_clones_mute.
+H4 (kinship matters for information): informativeness higher in e1_clones than in e1_mixed.
+H2-H4: one-sided permutation tests on seed-level values. All tests: 20 000 permutations,
+alpha 0.05, no correction (four distinct questions, H1 declared main).
+Exploratory, no test: emission_rate and mate_distance in all four conditions (an always-on
+"beacon" that keeps the group together vs a signal emitted on food); energy_late and
+informativeness in all conditions; e1_mixed vs e1_mixed_mute; blind_cost in e1_mixed.
 Sanity check: blind_cost is exactly 0 in both mute conditions.
 
     python scripts/compare_e1.py RUNS_DIR [JOBS]
@@ -51,7 +56,8 @@ LAST = 20
 EPISODES = 10
 EVAL_KEY_BASE = 1_000_000
 CONDITIONS = ("e1_clones", "e1_clones_mute", "e1_mixed", "e1_mixed_mute")
-METRICS = ("energy_late", "informativeness", "emission_rate", "blind_cost")
+METRICS = ("blind_cost", "energy_late", "informativeness", "emission_rate", "mate_distance")
+COUNTS = ("emitted", "steps_fed", "emitted_fed", "steps_unfed", "emitted_unfed")
 
 
 def energy_late(run: Path) -> float:
@@ -65,11 +71,14 @@ def final_population_metrics(run: str) -> dict[str, float]:
 
     raw = yaml.safe_load((Path(run) / "config.yaml").read_text(encoding="utf-8"))
     raw.pop("_run", None)
+    for stim in raw["stimuli"]:
+        if stim["type"] == "others":
+            stim["track_distance"] = True  # measurement only: no effect on behaviour
     cfg = config_from_dict(raw)
     genomes, _ = load_population(run)
     energy = {}
-    counts = dict.fromkeys(("emitted", "steps_fed", "emitted_fed", "steps_unfed",
-                            "emitted_unfed"), 0.0)  # fmt: skip
+    distances = []
+    counts = dict.fromkeys(COUNTS, 0.0)
     for blind in ((), ("signal",)):
         evo = Evolution(cfg, blind=blind)
         pop = [g.repair(evo.spec) for g in genomes]
@@ -78,6 +87,7 @@ def final_population_metrics(run: str) -> dict[str, float]:
             ev = evo.evaluate(pop, EVAL_KEY_BASE + k)
             gained.append(ev.stats.energy_gained.mean())
             if not blind:
+                distances.append(np.nanmean(ev.stimulus_stats["others.mate_distance"]))
                 for c in counts:
                     counts[c] += float(ev.stimulus_stats[f"signal.{c}"].sum())
         energy[blind] = float(np.mean(gained))
@@ -85,9 +95,10 @@ def final_population_metrics(run: str) -> dict[str, float]:
     p_unfed = counts["emitted_unfed"] / max(counts["steps_unfed"], 1.0)
     steps = counts["steps_fed"] + counts["steps_unfed"]
     return {
+        "blind_cost": energy[()] - energy[("signal",)],
         "informativeness": p_fed - p_unfed,
         "emission_rate": counts["emitted"] / max(steps, 1.0),
-        "blind_cost": energy[()] - energy[("signal",)],
+        "mate_distance": float(np.nanmean(distances)),
     }
 
 
@@ -122,7 +133,7 @@ def main() -> None:
         c: [
             {"seed": p.parent.name, "energy_late": energy_late(p.parent), **final[str(p.parent)]}
             for p in runs[c]
-        ]  # fmt: skip
+        ]
         for c in CONDITIONS
     }
     for c in CONDITIONS:
@@ -138,16 +149,21 @@ def main() -> None:
         return [r[m] for r in data[c]]
 
     print("\n=== Pre-registered tests (one-sided permutation, alpha 0.05)")
-    d, p = perm_greater(v("e1_clones", "informativeness"), v("e1_clones_mute", "informativeness"),
-                        rng)  # fmt: skip
-    print(f"H1 informativeness clones - clones_mute = {d:+.4f}, p = {p:.4f}")
     d, p = signflip_greater(v("e1_clones", "blind_cost"), rng)
-    print(f"H2 blind_cost in clones = {d:+.3f}, p = {p:.4f}")
+    print(f"H1 (main) blind_cost in clones = {d:+.3f}, p = {p:.4f}")
+    d, p = perm_greater(v("e1_clones", "energy_late"), v("e1_clones_mute", "energy_late"), rng)
+    print(f"H2 energy_late clones - clones_mute = {d:+.2f}, p = {p:.4f}")
+    d, p = perm_greater(
+        v("e1_clones", "informativeness"), v("e1_clones_mute", "informativeness"), rng
+    )
+    print(f"H3 informativeness clones - clones_mute = {d:+.4f}, p = {p:.4f}")
     d, p = perm_greater(v("e1_clones", "informativeness"), v("e1_mixed", "informativeness"), rng)
-    print(f"H3 informativeness clones - mixed = {d:+.4f}, p = {p:.4f}")
-    print("(sanity) blind_cost in the mute conditions: "
-          f"clones_mute {np.mean(v('e1_clones_mute', 'blind_cost')):+.4f}, "
-          f"mixed_mute {np.mean(v('e1_mixed_mute', 'blind_cost')):+.4f} (expected 0)")  # fmt: skip
+    print(f"H4 informativeness clones - mixed = {d:+.4f}, p = {p:.4f}")
+    print(
+        "(sanity) blind_cost in the mute conditions: "
+        f"clones_mute {np.mean(v('e1_clones_mute', 'blind_cost')):+.4f}, "
+        f"mixed_mute {np.mean(v('e1_mixed_mute', 'blind_cost')):+.4f} (expected 0)"
+    )
 
 
 if __name__ == "__main__":

@@ -890,8 +890,11 @@ generazioni, 24 seed per condizione:
 
 | | segnale sentito | canale muto |
 |---|---|---|
-| gruppi di 10 cloni, fitness di gruppo (40 genomi) | `e1_clones` | `e1_clones_mute` |
+| gruppi di cloni, fitness di gruppo | `e1_clones` | `e1_clones_mute` |
 | individui non imparentati, gruppi rimescolati (400 genomi) | `e1_mixed` | `e1_mixed_mute` |
+
+(Disegno finale dopo i piloti: gruppi da 5 in tutte le condizioni, 80 genomi × 5 cloni; vedi
+sotto.)
 
 Ipotesi fissate prima del lancio in `scripts/compare_e1.py`, misurate sulla popolazione
 finale su 10 episodi nuovi: H1 informatività (P(emette | nutrito) − P(emette | a digiuno))
@@ -911,3 +914,17 @@ alla generazione 5 e poi scende a circa 90 (il costo la seleziona contro). Con
 ancora circa 940 volte su 1000. Un segnale sempre acceso non porta informazione: con questo
 disegno H1 può fallire per un effetto soglia. Da decidere con l'utente prima del lancio
 (le config restano con `emit_cost: 0.01`, come pre-registrato).
+
+**Pilota di correzione e disegno finale (16/11, 1 seed, 20 generazioni).** Con gruppi da 5 in
+tutte le condizioni e 80 genomi × 5 cloni (sempre 400 agenti): i cloni muti smettono di
+emettere (circa 4 emissioni su 1000 passi alla generazione 19), come atteso per un gesto
+inutile che costa, quindi la saturazione precedente era dovuta a una selezione troppo debole
+con soli 40 genomi. Con il segnale sentito i cloni emettono invece quasi sempre (circa 970 su
+1000) e raccolgono molta più energia dei cloni muti (262 contro 159, un solo seed): il segnale
+sembra un "faro" sempre acceso più che un "qui c'è cibo". Decisione (utente: "decidi tu e
+procedi"): gruppi da 5 in tutte e 4 le condizioni; ipotesi riscritte prima del lancio in
+`scripts/compare_e1.py`: **H1 principale** i cloni resi sordi al segnale raccolgono meno;
+H2 energia `e1_clones` > `e1_clones_mute`; H3 informatività `e1_clones` > `e1_clones_mute`;
+H4 informatività `e1_clones` > `e1_mixed`. Esplorativi: tasso di emissione e distanza media
+dai compagni di gruppo (nuova misura `others.track_distance`, attiva solo nell'analisi) per
+distinguere un faro che tiene unito il gruppo da un segnale emesso sul cibo.

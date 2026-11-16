@@ -69,9 +69,11 @@ confronto pre-registrato tra gruppi di cloni (stesso genoma, selezione di gruppo
 non imparentati, più controllo con canale muto. 24 seed per condizione.
 
 Stato di E1 (16/11): pronto, non ancora lanciato. Stimolo `signal`, `genetics.clones` (+
-`world.group_shuffle`), config `e1_clones`, `e1_clones_mute`, `e1_mixed`, `e1_mixed_mute`
-(400 agenti per generazione ciascuna, 300 generazioni), ipotesi H1–H3 in
-`scripts/compare_e1.py`. Dettagli in `STATO_LAVORI.md`, sezione E1 e decisione 13.
+`world.group_shuffle`), config `e1_clones` (80 genomi × 5 cloni), `e1_clones_mute`,
+`e1_mixed`, `e1_mixed_mute` (gruppi da 5 ovunque, 400 agenti per generazione, 300
+generazioni), ipotesi H1 (principale: i cloni sordi al segnale raccolgono meno) – H4 in
+`scripts/compare_e1.py`. I piloti hanno mostrato un possibile segnale "faro" sempre acceso
+nei cloni. Dettagli in `STATO_LAVORI.md`, sezione E1 e decisione 13.
 
 Strumenti nuovi: `world.arenas: groups` (+ `group_size`, `group_shuffle`), stimoli `others`,
 `food_patch` e `signal`, `genetics.clones`, `scripts/eco_local.py` (ecosistemi in parallelo
