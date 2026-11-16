@@ -1,4 +1,5 @@
-# Stage D5 (= D4 + kin-only feeding + soil fallow 2000): no imposed juvenile handicaps; the only difference between young and adult is
+# Stage D5 (= D4 + kin-only feeding + soil fallow 2000 + food 500, founders evolved in this
+# world; population self-regulates at ~80-110, below capacity 300): no imposed juvenile handicaps; the only difference between young and adult is
 # physical: the brain a juvenile has grown so far (dormant neurons wake by investing
 # energy). Rich world (food, hazards, farming with crop varieties, spicy seasons).
 # "Feed" is only a physical possibility (any juvenile, 20% lost); nothing rewards it.
@@ -42,7 +43,7 @@ stimuli:
       hazard.damage: 0.5
       terrain.action_cost: 2.0
 - type: food
-  count: 40
+  count: 500
   regrow_rate: 0.01
 - type: hazard
   count: 8
