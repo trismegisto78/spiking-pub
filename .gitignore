@@ -7,3 +7,4 @@ runs-*.log
 report/
 runs-archive/
 .venv/
+runs-pilot/

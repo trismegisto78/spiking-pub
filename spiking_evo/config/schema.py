@@ -20,7 +20,10 @@ class WorldConfig:
     wrap: bool = True
     # "isolated": every agent lives in its own copy of the world (no competition).
     # "shared": all agents live in the same world and compete for resources.
+    # "groups": agents are split at random, every episode, into worlds of ``group_size``
+    # agents that share resources and can sense each other (stage E0, social senses).
     arenas: str = "isolated"
+    group_size: int = 10
     # All agents start from the same position/heading (fair comparison) when True.
     same_start: bool = True
 

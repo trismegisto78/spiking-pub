@@ -1,0 +1,38 @@
+# Stage E0: sensing the others. Food grows in a few rich patches that jump to new places
+# every 250 steps and is sensed only from close by (radius 2); the other agents of the group
+# are sensed from farther away (radius 6). Groups of 10 agents share a world; fitness stays
+# individual (energy gained). Question: do agents evolve to use the others as a cue to find
+# food? Control: e0_control.yaml (same inputs, others.sense_gain 0).
+experiment: e0_social
+seed: 1
+world:
+  width: 40
+  height: 40
+  steps_per_episode: 1000
+  arenas: groups
+  group_size: 10
+  same_start: false
+stimuli:
+  - type: food_patch
+    count: 60
+    patches: 3
+    patch_radius: 1.5
+    relocate_every: 250
+    regrow_rate: 0.02
+    sense_radius: 2
+  - type: others
+    sense_radius: 6
+    sense_gain: 1.0
+network:
+  encoder: rate
+  hidden_max: 30
+genetics:
+  population: 200
+  generations: 200
+  tournament_size: 3
+  elitism: 5
+  mutation: { weight: 0.1, threshold: 0.05, add_synapse: 0.02, remove_synapse: 0.01 }
+fitness:
+  energy: 1.0
+  firing_penalty: { target_rate_hz: 20, weight: 0.5 }
+  silence_penalty: { weight: 0.5 }

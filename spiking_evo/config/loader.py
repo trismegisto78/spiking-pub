@@ -150,7 +150,11 @@ def validate(cfg: Config) -> None:
     checks = [
         (w.width > 0 and w.height > 0, "world size must be positive"),
         (w.steps_per_episode > 0, "world.steps_per_episode must be positive"),
-        (w.arenas in ("isolated", "shared"), "world.arenas must be 'isolated' or 'shared'"),
+        (
+            w.arenas in ("isolated", "shared", "groups"),
+            "world.arenas must be 'isolated', 'shared' or 'groups'",
+        ),
+        (w.group_size >= 1, "world.group_size must be >= 1"),
         (n.encoder in ("rate", "latency", "current"), "network.encoder: rate|latency|current"),
         (n.dt_ms > 0, "network.dt_ms must be positive"),
         (n.steps_per_tick >= 1, "network.steps_per_tick must be >= 1"),

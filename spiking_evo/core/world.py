@@ -21,7 +21,11 @@ the core gives them no meaning, stimuli decide what they do. This is the one cor
 made for environment modification (see STATO_LAVORI.md).
 
 In "isolated" mode every agent has its own arena (a private copy of the world, so no
-competition); in "shared" mode all agents live in arena 0.
+competition); in "shared" mode all agents live in arena 0; in "groups" mode the agents are
+split at random, at every episode reset, into arenas of ``group_size`` agents (the last one
+may be smaller). Groups are the second core extension (stage E0): agents of a group share
+resources and can sense each other, so social behaviour can be selected while fitness stays
+individual. The split is drawn from (seed, *keys, "groups"), so it is reproducible.
 
 Parallel evaluation: in isolated mode a population of ``batch_total`` agents can be split
 into chunks simulated by different processes; this world then holds the agents
@@ -89,8 +93,13 @@ class World:
         self.wrap = world_cfg.wrap
         self.stimuli = list(stimuli)
         self.n_agents = n_agents
-        self.n_arenas = n_agents if world_cfg.arenas == "isolated" else 1
-        arena = np.arange(n_agents) if world_cfg.arenas == "isolated" else np.zeros(n_agents)
+        if world_cfg.arenas == "isolated":
+            self.n_arenas, arena = n_agents, np.arange(n_agents)
+        elif world_cfg.arenas == "groups":
+            g = world_cfg.group_size
+            self.n_arenas, arena = -(-n_agents // g), np.arange(n_agents) // g
+        else:
+            self.n_arenas, arena = 1, np.zeros(n_agents)
         self.n_actions = n_actions
         self.agents = Agents.create(n_agents, arena, agent_cfg.initial_energy, n_actions)
         self.clock = clock or Clock()
@@ -105,8 +114,8 @@ class World:
         ``draw(shape)`` is called with shape (total arenas, *tail) and the rows of the arenas
         held by this world are returned, e.g. ``world.per_arena(rng.random, count)``.
         """
-        if self.n_arenas == 1 and self.batch_total == self.n_agents:
-            return draw((1, *tail))
+        if self.batch_total == self.n_agents:  # not split: exactly one row per arena
+            return draw((self.n_arenas, *tail))
         lo = self.batch_offset
         return draw((self.batch_total, *tail))[lo : lo + self.n_arenas]
 
@@ -145,6 +154,9 @@ class World:
             a.x[:] = rng.integers(self.width, size=total)[lo : lo + n]
             a.y[:] = rng.integers(self.height, size=total)[lo : lo + n]
             a.heading[:] = rng.integers(4, size=total)[lo : lo + n]
+        if self.cfg.arenas == "groups":
+            order = derive_rng(seed, *keys, "groups").permutation(n)
+            a.arena[order] = np.arange(n) // self.cfg.group_size
         a.energy[:] = self.agent_cfg.initial_energy
         a.alive[:] = True
         a.energy_gained[:] = 0.0

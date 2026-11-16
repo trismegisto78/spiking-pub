@@ -61,3 +61,31 @@ def test_blinding_a_stimulus_zeroes_only_its_senses(tiny_config):
     assert np.array_equal(
         Evolution(cfg, blind=("food",), workers=2).evaluate(pop, 0).fitness, blind.fitness
     )
+
+
+@pytest.mark.parametrize("bounds", [(0, 5, 12), (0, 11, 12)])
+def test_chunked_evaluation_with_patches_and_others(tiny_config, bounds):
+    # New E0 stimuli in isolated arenas: results must not depend on the split.
+    cfg = tiny_config(
+        world={"same_start": False},
+        stimuli=[
+            {
+                "type": "food_patch",
+                "count": 12,
+                "patches": 2,
+                "regrow_rate": 0.1,
+                "relocate_every": 20,
+                "shared_layout": False,
+            },
+            {"type": "others"},
+        ],
+        fitness={"episodes": 2},
+    )
+    evo = Evolution(cfg)
+    pop = evo.initial_population()
+    full = evo.evaluate(pop, 3)
+    parts = [
+        evo.evaluate_chunk(pop[lo:hi], 3, lo, len(pop))
+        for lo, hi in zip(bounds[:-1], bounds[1:], strict=True)
+    ]
+    assert_same(full, merge_evaluations(parts))

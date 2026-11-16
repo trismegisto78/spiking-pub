@@ -649,6 +649,13 @@ codice.
     l'agente muore.
 11. **Morte:** con energia a zero l'agente smette di muoversi e mangiare
     (`agent.die_at_zero`, disattivabile).
+12. **Arene a gruppi (modifica al core, tappa E0, 16/11/2026):** `world.arenas: groups` con
+    `world.group_size`. A ogni episodio gli agenti vengono divisi a caso (da
+    `(seed, chiavi, "groups")`) in mondi da `group_size` agenti che condividono le risorse e
+    possono percepirsi; la fitness resta individuale. Non si può dividere tra processi (come
+    `shared`): il parallelismo si fa tra seed. `World.per_arena` ora estrae una riga per arena
+    quando la popolazione non è divisa; per `isolated` e `shared` è identico a prima
+    (verificato bit per bit sulla baseline).
 
 ---
 
@@ -834,3 +841,19 @@ resta circa 0.9 in quasi tutti i mondi. Il controllo riproduce esattamente i num
 controllo D5 (stessa config e seed): simulazione deterministica. Il notebook (Ryzen 7 5700U,
 8 core fisici) non basta per questi esperimenti: 16 mondi in parallelo vanno a circa 75 s ogni
 1000 passi, quindi circa 3.5 ore per 8+8, contro circa 14 s sul pod da 32 vCPU.
+
+## E0 (2026-11-16) — vedere gli altri: preparazione e ipotesi
+
+Primo passo verso la comunicazione (percorso E0 → E1 segnale → E2 più "parole" → E3
+coordinazione). Nuovi pezzi: arene a gruppi (decisione 12), stimolo `others` (dove sono gli
+altri agenti vivi del gruppo, per settore, raggio configurabile; `sense_gain: 0` = controllo
+con gli stessi ingressi sempre a 0), stimolo `food_patch` (cibo in chiazze gaussiane che si
+spostano ogni `relocate_every` passi; il cibo ricresce attorno ai centri attuali).
+
+Esperimento: `e0_social` contro `e0_control`, gruppi da 10, 40×40, 60 cibi in 3 chiazze
+(raggio 1.5, si spostano ogni 250 passi, cibo sentito solo entro 2 celle), gli altri sentiti
+entro 6 celle; 200 generazioni, 24 seed per condizione. Ipotesi fissate prima del lancio in
+`scripts/compare_e0.py`: H1 più energia con il senso sociale; H2 nella condizione sociale la
+popolazione finale raccoglie meno se resa sorda agli altri. Pilota (1 seed, 30 generazioni,
+solo calibrazione): il mondo funziona (fitness da 15 a circa 200–240), circa 2.8 s per
+generazione con `others`, 1.7 s senza.
