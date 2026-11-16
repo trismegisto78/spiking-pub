@@ -68,6 +68,7 @@ class TerrainStimulus:
         crops: list[dict] | None = None,
         poison_damage: float = 2.0,
         poison_duration: int = 200,
+        fallow_time: int = 0,
         action_cost: float = 0.2,
         sense_radius: int = 3,
         sense_gain: float = 1.0,
@@ -115,6 +116,8 @@ class TerrainStimulus:
         self._max_energy = max(float(self._energy.max()), 1e-9)
         self.poison_damage = poison_damage
         self.poison_duration = poison_duration
+        # Soil exhaustion: after a harvest the cell cannot be sown for fallow_time steps.
+        self.fallow_time = fallow_time
         self.action_cost = action_cost
         self.sense_radius = sense_radius
         self.sense_gain = sense_gain
@@ -147,6 +150,7 @@ class TerrainStimulus:
         self.g = 0.0
         self._rate = 1.0
         self.poison_until = np.zeros((n, h, w), dtype=np.int64)  # poisoned while t < value
+        self.fallow_until = np.zeros((n, h, w), dtype=np.int64)  # resting while t < value
         self.t = 0
         a = world.n_agents
         self.planted = np.zeros(a)
@@ -237,12 +241,17 @@ class TerrainStimulus:
             self.harvest_energy_total[idx] += gain
             np.add.at(self.harvested_by_variety, (idx, var - 1), 1)
             self.sown[a[idx], y[idx], x[idx]] = 0
+            self.fallow_until[a[idx], y[idx], x[idx]] = t + self.fallow_time
 
         # 2. Act on the current cell.
         acting = alive & agents.action[:, self.action]
         delta -= self.action_cost * seasonal(self, "action_cost") * acting
         self.actions += acting
-        free = (self.sown[a, y, x] == 0) & (self.poison_until[a, y, x] <= t)
+        free = (
+            (self.sown[a, y, x] == 0)
+            & (self.poison_until[a, y, x] <= t)
+            & (self.fallow_until[a, y, x] <= t)
+        )
         idx = self._one_per_cell(np.flatnonzero(acting & free), agents, world)
         if idx.size:
             fertile = self.fertile[a[idx], y[idx], x[idx]]
