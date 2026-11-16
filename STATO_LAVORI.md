@@ -823,3 +823,14 @@ terreno (`fallow_time`); il cibo condiviso va scalato per la popolazione (500 �
 7 ms/passo). Esito 16+16: H1–H3 non supportati (p ≈ 0.47–0.62), nessuna estinzione. Il gesto
 "nutri" deriva allo stesso modo con e senza effetto. Prossimo passo proposto: rendere il dono
 energeticamente rilevante (feed_amount più alto) e capire perché la mortalità giovanile è 70–90%.
+
+## D6 (2026-11-16) — dono da 10: le cure ancora non emergono
+
+Vedi `results/2026-11-16-eco-d6/README.md`. D5 con `feed_amount: 10` (8 ricevuti), 16+16 mondi
+su RunPod (circa 65 min, circa 1.05 $), nessuna estinzione. H1–H3 non supportati (p = 0.92,
+0.92, 0.85): con il dono grande si nutre semmai meno (2.7 contro 6.8 gesti ogni 1000
+passi-adulto, non significativo, p = 0.08 nella direzione opposta) e la mortalità giovanile
+resta circa 0.9 in quasi tutti i mondi. Il controllo riproduce esattamente i numeri del
+controllo D5 (stessa config e seed): simulazione deterministica. Il notebook (Ryzen 7 5700U,
+8 core fisici) non basta per questi esperimenti: 16 mondi in parallelo vanno a circa 75 s ogni
+1000 passi, quindi circa 3.5 ore per 8+8, contro circa 14 s sul pod da 32 vCPU.

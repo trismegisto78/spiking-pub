@@ -50,6 +50,7 @@ Pezzi chiave:
 | D1–D3 ecosistema e accudimento | l'accudimento non emerge |
 | D4 "naturale" (32+32 mondi) | nutrire **viene eliminato** (costa, si nutre chiunque, popolazione sempre al tetto) |
 | D5 (16+16): dono solo ai figli, suolo che riposa, cibo 500, fondatori evoluti nel mondo D5 | mondo sano (popolazione 35–117, nessuna estinzione), ma **nessuna differenza** tra cure e controllo (p ≈ 0.47–0.62) |
+| D6 (16+16): come D5 ma dono da 10 | ancora **nessuna differenza** (H1–H3 p = 0.92/0.92/0.85); con cure si nutre semmai meno; mortalità giovanile circa 0.9 ovunque |
 
 Diagnosi dopo D5 (`scripts/diagnose_juveniles.py`): i piccoli muoiono di **pericoli** (−16…−22
 energia, quanto tutta la loro dote) e di **fame**; l'aiuto dei genitori vale +0.06…+0.13. Il
@@ -57,20 +58,20 @@ dono (2 energia, 1.6 ricevuti) è troppo piccolo per cambiare il destino di un f
 da 10 (test 8, 20 000 passi) il mondo regge, ma i fondatori nutrono ancora di rado: solo una
 simulazione lunga può dire se la selezione lo fa crescere.
 
-## 4. Prossimo passo proposto (non ancora lanciato)
+## 4. Prossimo passo
 
-**D6** = mondo D5 con `feed_amount: 10` (il genitore cede 10, il figlio riceve 8). Da fare:
-1. creare `eco_d6_care.yaml` / `eco_d6_control.yaml` copiando quelli D5 (nel controllo
-   `feed_amount: 0`), più `scripts/compare_d6.py` (stesse ipotesi H1–H3 di D5);
-2. pubblicare su spiking-pub, poi 16+16 seed × 200 000 passi.
-   Su RunPod: circa 70 min, circa 1.1 $. In locale: circa 25 min per mondo per core.
+D6 fatto (vedi sopra e `results/2026-11-16-eco-d6/`): il dono più grande non basta. Da
+decidere con l'utente. Il dato più forte è che i piccoli muoiono quasi tutti (circa 90%)
+qualunque cosa facciano i genitori, quindi ha senso capire prima **perché** (pericoli? fame?
+cervello troppo piccolo?) con test brevi, e solo dopo cambiare il mondo.
 
 ## 5. Richieste aperte dell'utente
 
 - **Far girare sul suo notebook** (NOTEBOOK-ALE: Windows 11, Python 3.12, **16 core logici**;
   i 150 test passano lì, verificato il 16/11/2026 con il commit "Baseline with 8 seeds…").
-  Tempi stimati per D6 in locale, a circa 25–35 min per mondo per core: 8+8 mondi in circa
-  35–45 min (un turno); 16+16 in circa 1–1.5 h (due turni). Comando:
+  Tempi **misurati** il 16/11: un mondo da solo circa 8 s ogni 1000 passi, ma con 16 mondi in
+  parallelo circa 75 s ogni 1000 passi (8 core fisici): 8+8 da 200 000 passi in circa 3.5 h.
+  Per esperimenti lunghi usare RunPod; sul notebook solo test brevi. Comando:
   `python -m spiking_evo ecosystem spiking_evo/experiments/eco_d6_care.yaml --seed N` (un
   processo per mondo), oppure uno script che li lanci in parallelo come `runpod/eco_job.sh`.
   Dalle sessioni cloud le sue cartelle (`spike`, …) non risultavano utilizzabili: o si aggiorna
