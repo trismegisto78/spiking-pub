@@ -25,7 +25,8 @@ competition); in "shared" mode all agents live in arena 0; in "groups" mode the 
 split at random, at every episode reset, into arenas of ``group_size`` agents (the last one
 may be smaller). Groups are the second core extension (stage E0): agents of a group share
 resources and can sense each other, so social behaviour can be selected while fitness stays
-individual. The split is drawn from (seed, *keys, "groups"), so it is reproducible.
+individual. The split is drawn from (seed, *keys, "groups"), so it is reproducible; with
+``group_shuffle: false`` consecutive agents stay together (groups of clones, stage E1).
 
 Parallel evaluation: in isolated mode a population of ``batch_total`` agents can be split
 into chunks simulated by different processes; this world then holds the agents
@@ -154,7 +155,7 @@ class World:
             a.x[:] = rng.integers(self.width, size=total)[lo : lo + n]
             a.y[:] = rng.integers(self.height, size=total)[lo : lo + n]
             a.heading[:] = rng.integers(4, size=total)[lo : lo + n]
-        if self.cfg.arenas == "groups":
+        if self.cfg.arenas == "groups" and self.cfg.group_shuffle:
             order = derive_rng(seed, *keys, "groups").permutation(n)
             a.arena[order] = np.arange(n) // self.cfg.group_size
         a.energy[:] = self.agent_cfg.initial_energy

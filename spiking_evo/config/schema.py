@@ -24,6 +24,9 @@ class WorldConfig:
     # agents that share resources and can sense each other (stage E0, social senses).
     arenas: str = "isolated"
     group_size: int = 10
+    # "groups" only: re-split the agents at random every episode (True), or keep agents
+    # [k*group_size, (k+1)*group_size) together (False; used by genetics.clones).
+    group_shuffle: bool = True
     # All agents start from the same position/heading (fair comparison) when True.
     same_start: bool = True
 
@@ -149,6 +152,11 @@ class GeneticsConfig:
     elitism: int = 5
     crossover: float = 0.0  # probability that an offspring comes from crossover
     encoding: str = "direct"  # "indirect" is planned for milestone 3
+    # Groups of clones (stage E1): every genome is evaluated as ``clones`` identical agents
+    # living together in one group arena; its fitness is the mean of the group (selection
+    # between groups of relatives). 1 = one agent per genome (default). Needs
+    # world.arenas: groups, world.group_size == clones and world.group_shuffle: false.
+    clones: int = 1
     mutation: MutationConfig = field(default_factory=MutationConfig)
 
 

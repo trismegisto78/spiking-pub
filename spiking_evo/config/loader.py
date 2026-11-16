@@ -155,6 +155,13 @@ def validate(cfg: Config) -> None:
             "world.arenas must be 'isolated', 'shared' or 'groups'",
         ),
         (w.group_size >= 1, "world.group_size must be >= 1"),
+        (g.clones >= 1, "genetics.clones must be >= 1"),
+        (
+            g.clones == 1
+            or (w.arenas == "groups" and w.group_size == g.clones and not w.group_shuffle),
+            "genetics.clones > 1 needs world.arenas: groups, world.group_size == clones and "
+            "world.group_shuffle: false",
+        ),
         (n.encoder in ("rate", "latency", "current"), "network.encoder: rate|latency|current"),
         (n.dt_ms > 0, "network.dt_ms must be positive"),
         (n.steps_per_tick >= 1, "network.steps_per_tick must be >= 1"),

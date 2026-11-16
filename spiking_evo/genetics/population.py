@@ -105,6 +105,11 @@ class Evolution:
         return [Genome.random(self.spec, rng) for _ in range(self.cfg.genetics.population)]
 
     def evaluate(self, genomes: list[Genome], generation: int) -> Evaluation:
+        k = self.cfg.genetics.clones
+        if k > 1:
+            # Every genome lives as k clones in its own group arena; it scores their mean.
+            clones = [g for g in genomes for _ in range(k)]
+            return collapse_clones(self.evaluate_chunk(clones, generation, 0, len(clones)), k)
         if self.workers == 1:
             return self.evaluate_chunk(genomes, generation, 0, len(genomes))
         pool = self._get_pool()
@@ -379,6 +384,22 @@ def load_population(path: str | Path) -> tuple[list[Genome], list[str]]:
         raw.pop("_run", None)
         names = n_input_channels(config_from_dict(raw))[1]
     return [Genome.from_dict(d) for d in data["genomes"]], list(names)
+
+
+def collapse_clones(ev: Evaluation, k: int) -> Evaluation:
+    """Average every per-agent array over consecutive groups of ``k`` clones."""
+
+    def mean(x: np.ndarray) -> np.ndarray:
+        return np.asarray(x).reshape(-1, k).mean(axis=1)
+
+    return Evaluation(
+        fitness=mean(ev.fitness),
+        terms={t: mean(v) for t, v in ev.terms.items()},
+        stimulus_stats={s: mean(v) for s, v in ev.stimulus_stats.items()},
+        stats=BehaviourStats(
+            **{f: mean(getattr(ev.stats, f)) for f in BehaviourStats.__dataclass_fields__}
+        ),
+    )
 
 
 def merge_evaluations(parts: list[Evaluation]) -> Evaluation:
