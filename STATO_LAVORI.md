@@ -14,7 +14,7 @@ macchina (il tuo PC) o in un'altra sessione senza dover ricostruire il contesto.
 | Milestone 2 (ambiente ricco) | **in corso**: pericoli a più livelli e terreno modificabile fatti; `FoodPatchStimulus` e test comportamentale formale da fare |
 | Milestone 3 (diversità e comunicazione) | da iniziare |
 | Milestone 4 (analisi) | da iniziare |
-| Test | 150, tutti verdi; `ruff` pulito |
+| Test | 150, tutti verdi anche su Windows 11 / Python 3.12 (16/11/2026); `ruff`: 3 righe troppo lunghe in `scripts/compare_d4.py` e `compare_d5.py` |
 | Dipendenze runtime | solo `numpy` e `pyyaml` |
 
 Dove sta il codice oggi:
@@ -46,8 +46,7 @@ popolazione 200, griglia 40×40, 60 cibi con rigenerazione 0.01, 1000 passi per 
 Controllo comportamentale fatto a mano: il genoma migliore della generazione 99, rivalutato su
 20 episodi mai visti, raccoglie in media 540 di energia; con i sensori del cibo azzerati ne
 raccoglie 8 e quasi non si muove (40 celle invece di 700). Il comportamento quindi dipende dai
-sensori. Questo **non** dimostra ancora una ricerca mirata del cibo: per quello serve il test
-comportamentale previsto dal milestone 2 (vedi sezione 7).
+sensori. La ricerca mirata del cibo è dimostrata dai test della sezione successiva.
 
 ### Prestazioni (misurate su un container con 4 core)
 
@@ -60,6 +59,58 @@ comportamentale previsto dal milestone 2 (vedi sezione 7).
 | `sweep` di 4 seed in parallelo | 0.47 s per run |
 
 Un baseline da 300 generazioni dura circa 6.5 minuti su un core.
+
+### Baseline con 8 seed e strategia evoluta (14/11/2026, PC Windows)
+
+`sweep food_only_baseline.yaml --seeds 1-8`, 300 generazioni, circa 22 minuti su 16 core
+logici (circa 6 s per generazione con 8 run in parallelo).
+
+| generazione | 0 | 49 | 99 | 199 | 299 |
+|---|---|---|---|---|---|
+| fitness media (media tra seed) | 16 | 444 | 514 | 550 | 548 |
+| deviazione standard tra seed | 4 | 90 | 26 | 15 | 15 |
+
+Plateau intorno a 550 dalla generazione 200 circa: per questa config bastano 200
+generazioni. I seed partiti peggio recuperano e la varianza tra seed si stringe. A parità di
+fitness le reti finali hanno da 15 a 48 sinapsi e firing rate da circa 20 a 80 Hz.
+
+**Cosa hanno imparato.** `scripts/behaviour_baseline.py` valuta il genoma migliore di gen 299
+di ogni seed su 200 episodi nuovi, manipolando i sensori prima della rete:
+
+| condizione | energia raccolta (media sugli 8 seed) |
+|---|---|
+| sensori intatti | 561 (541–571) |
+| sensori del cibo azzerati | 9: vanno dritti, nel mondo toroidale ripercorrono la stessa riga di 40 celle e muoiono di fame |
+| solo `here` (front/left/right azzerati) | 9, identico al precedente |
+| sinistra e destra scambiate | 119 |
+| camminatore casuale | 51 |
+| regola scritta a mano "gira verso il lato col segnale più forte" | 769 |
+
+La strategia è la stessa su tutti i seed: un **veicolo di Braitenberg**. Senza cibo vanno
+dritti (girano in meno dell'1,5% dei passi); con cibo su un lato girano verso di esso in circa
+il 56% dei passi e quasi mai dall'altra parte. Ne sono emerse due varianti speculari che
+rendono uguale:
+
+- seed 1, 6, 7 camminano **in avanti** con collegamenti ipsilaterali (`left -> gira_sx`);
+- seed 2, 3, 4, 5, 8 camminano **all'indietro** con collegamenti controlaterali
+  (`left -> gira_dx`), che in retromarcia è la sterzata giusta.
+
+Nella rete del seed 1 (15 sinapsi) il circuito si legge direttamente: `bias -> avanti`,
+`left -> gira_sx`, `right -> gira_dx`.
+
+Conseguenze:
+
+- il canale `here` è quasi sempre 0 quando viene letto, perché il cibo è mangiato appena
+  l'agente arriva sulla cella: azzerarlo non cambia nulla;
+- `front` è poco usato, e chi cammina all'indietro non vede dove va (manca `back`);
+- senza cibo in vista non c'è alcuna strategia di ricerca: vanno dritti;
+- la regola scritta a mano rende il 37% in più, quindi c'è margine di miglioramento.
+
+Il comando `behaviour` fa i test di cecità per stimolo e torna con questi numeri (seed 1:
+566 normale, 8 cieco). Lo script aggiunge i test che `behaviour` non fa: scambio
+sinistra/destra, ablazione dei soli canali direzionali, confronto con un camminatore casuale
+e con una regola di riferimento, e statistiche di sterzata. Rieseguito sul codice attuale
+(16/11/2026) dà risultati identici, numero per numero.
 
 ---
 
@@ -649,11 +700,10 @@ recente) oppure la cartella sta in una directory nascosta. Anche dopo, l'accesso
 cloud alle cartelle del PC potrebbe non essere ancora disponibile per il tuo account; una
 sessione che gira direttamente sul PC funziona comunque.
 
-### Cose non ancora verificate su Windows
+### Windows
 
-Il codice è pensato per essere portabile (processi avviati con `spawn`, conteggio CPU con
-ripiego per sistemi non Linux), ma è stato testato solo su Linux. Alla prima esecuzione sul PC
-conviene lanciare `python -m pytest` e segnalare eventuali errori. `runpod/*.sh` e il
+Verificato il 16/11/2026 su Windows 11 con Python 3.12: i 150 test passano, `sweep`
+parallelo (processi `spawn`), `analyze` e `behaviour` funzionano. `runpod/*.sh` e il
 `Dockerfile` non servono in locale.
 
 ---
