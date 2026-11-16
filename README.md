@@ -22,6 +22,29 @@ pytest && ruff check .
 Output in `runs/<esperimento>/<seed>/`: `generations.csv`, `terms.csv`,
 `snapshots/gen_XXXX.json`, `checkpoint.json`, `config.yaml` (con commit hash e flag dirty).
 
+## Guardare le run: `watch`
+
+```bash
+python -m spiking_evo watch                 # cerca runs/, runs-pilot/, runs-archive/*/x/runs
+python -m spiking_evo watch runs-pod --port 8800 --no-browser
+```
+
+Apre nel browser una pagina locale (solo 127.0.0.1, nessuna dipendenza in più; legge solo
+dentro le cartelle delle run e non scrive nulla):
+
+- **Mondo**: la griglia dal vivo con cibo, pericoli, suolo fertile, raccolti, veleno e segnali;
+  le creature come triangoli orientati (blu = più energia, rosso = meno; piccoli in arancio,
+  con la linea verso il genitore negli ecosistemi). Play/pausa (spazio), velocità, arena.
+  Per una run a generazioni si sceglie la popolazione finale, una popolazione casuale
+  (generazione 0) o il migliore di una generazione qualsiasi (cursore): si vede come cambia
+  il comportamento lungo l'evoluzione. Gli ecosistemi partono dai fondatori della config.
+- **Individuo**: clic su una creatura: energia, età, posizione, geni di vita, i sensi in
+  questo passo, le uscite motorie e il disegno della rete (sinapsi blu eccitatorie, rosse
+  inibitorie; neuroni gialli = hanno sparato in questo passo).
+- **Metriche**: qualsiasi colonna di `generations.csv`, `ecosystem.csv`, `stimuli.csv`,
+  `terms.csv`; per ogni esperimento media tra i seed con banda ±1 deviazione standard e i
+  seed singoli in trasparenza; più esperimenti a confronto; tabella dei valori finali.
+
 ## Risultato baseline (seed 42, 100 generazioni, ~3 min su CPU)
 
 | | gen 0 | gen 99 |

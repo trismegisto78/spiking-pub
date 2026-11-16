@@ -6,6 +6,7 @@ python -m spiking_evo evaluate runs/<exp>/<seed>/snapshots/gen_0099.json --confi
 python -m spiking_evo sweep CONFIG [CONFIG ...] --seeds 1-16 --out /workspace/runs
 python -m spiking_evo analyze runs --out report
 python -m spiking_evo behaviour SNAPSHOT --config CONFIG --episodes 20
+python -m spiking_evo watch [RUNS_DIR ...] [--port 8765] [--no-browser]
 
 The output root defaults to $SPIKING_EVO_OUT, then to metrics.out_dir of the config.
 """
@@ -126,6 +127,19 @@ def cmd_behaviour(args) -> int:
     return 0
 
 
+def cmd_watch(args) -> int:
+    from pathlib import Path
+
+    from .watch.data import default_roots
+    from .watch.server import serve
+
+    roots = [Path(r) for r in args.roots] or default_roots(Path.cwd())
+    if not roots:
+        print("[watch] nessuna cartella di run trovata: indica RUNS_DIR (es. runs)")
+    serve(roots, port=args.port, open_browser=not args.no_browser)
+    return 0
+
+
 def cmd_ecosystem(args) -> int:
     from .ecosystem import Ecosystem
 
@@ -208,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--out")
     k.add_argument("--quiet", action="store_true")
     k.set_defaults(func=cmd_ecosystem)
+
+    wt = sub.add_parser("watch", help="local web GUI: live worlds, individuals, metrics")
+    wt.add_argument("roots", nargs="*", help="run folders (default: runs, runs-pilot, archive)")
+    wt.add_argument("--port", type=int, default=8765)
+    wt.add_argument("--no-browser", action="store_true")
+    wt.set_defaults(func=cmd_watch)
 
     c = sub.add_parser("cpus", help="print the number of CPUs available to this container")
     c.set_defaults(func=lambda a: print(available_cpus()) or 0)

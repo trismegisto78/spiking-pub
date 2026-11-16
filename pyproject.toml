@@ -23,7 +23,7 @@ spiking-evo = "spiking_evo.cli:main"
 include = ["spiking_evo*"]
 
 [tool.setuptools.package-data]
-spiking_evo = ["experiments/*.yaml", "experiments/*.toml"]
+spiking_evo = ["experiments/*.yaml", "experiments/*.toml", "watch/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["spiking_evo/tests"]

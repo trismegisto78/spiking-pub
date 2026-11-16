@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spiking-Evo watch</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Spiking-Evo <span>watch</span></h1>
+  <nav>
+    <button class="tab active" data-tab="world">Mondo</button>
+    <button class="tab" data-tab="metrics">Metriche</button>
+  </nav>
+  <div id="status"></div>
+</header>
+<main>
+  <aside id="sidebar">
+    <section>
+      <h2>Run salvate</h2>
+      <input id="filter" type="search" placeholder="filtra esperimenti…">
+      <div id="runs"></div>
+    </section>
+    <section>
+      <h2>Esperimenti da zero</h2>
+      <select id="configs"></select>
+      <button id="start-config">Avvia</button>
+    </section>
+  </aside>
+
+  <div id="world" class="panel active">
+    <div class="toolbar">
+      <div id="source" class="group"></div>
+      <div class="group">
+        <button id="play" title="Play / pausa (spazio)">▶</button>
+        <button id="step" title="Un passo">+1</button>
+        <label>velocità
+          <select id="speed">
+            <option value="1">1</option><option value="2">2</option><option value="5" selected>5</option>
+            <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            <option value="100">100</option>
+          </select> passi/fotogramma
+        </label>
+        <label>arena <input id="arena" type="number" min="0" value="0"></label>
+      </div>
+      <div id="layer-toggles" class="group"></div>
+    </div>
+    <div class="world-body">
+      <div class="grid-wrap">
+        <canvas id="grid"></canvas>
+        <div id="hud"></div>
+        <div id="legend"></div>
+      </div>
+      <div id="agent-panel">
+        <p class="hint">Avvia una run dalla colonna a sinistra, poi clicca una creatura per vederne
+          sensi, uscite e cervello.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="metrics" class="panel">
+    <div class="toolbar">
+      <div class="group">
+        <label>file <select id="m-file"></select></label>
+        <label>asse x <select id="m-x"></select></label>
+      </div>
+      <div class="group" id="m-exps"></div>
+    </div>
+    <div class="metrics-body">
+      <div id="m-cols"></div>
+      <div id="charts"></div>
+    </div>
+    <div id="m-summary"></div>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
