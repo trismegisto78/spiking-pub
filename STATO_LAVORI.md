@@ -656,6 +656,15 @@ codice.
     `shared`): il parallelismo si fa tra seed. `World.per_arena` ora estrae una riga per arena
     quando la popolazione non è divisa; per `isolated` e `shared` è identico a prima
     (verificato bit per bit sulla baseline).
+13. **Gruppi di cloni (tappa E1, 16/11/2026):** `genetics.clones: k` valuta ogni genoma come
+    k agenti identici che vivono nella stessa arena di gruppo; la fitness del genoma è la
+    media del gruppo (selezione tra gruppi di parenti, come nelle colonie di robot di
+    Floreano e colleghi). Richiede `world.arenas: groups`, `world.group_size == k` e
+    `world.group_shuffle: false` (nuova opzione: gli agenti consecutivi restano insieme
+    invece di essere rimescolati). `genetics.population` conta i genomi, quindi gli agenti
+    per generazione sono `population * k`. Implementato in `Evolution.evaluate` (espande,
+    valuta, fa la media con `collapse_clones`), senza toccare il core oltre a
+    `group_shuffle`.
 
 ---
 
@@ -867,3 +876,38 @@ p = 0.22). Esplorativo: il vantaggio sociale è netto nelle prime 50 generazioni
 energia) e si riduce dopo; la sopravvivenza resta più alta per tutta la run (98% contro 94–95%).
 L'informazione sui vicini è un indizio involontario che porta con sé competizione; prossimo
 passo E1: un segnale emesso per scelta (`signal`), con gruppi di cloni contro non imparentati.
+
+## E1 (2026-11-16) — il primo segnale: preparazione e ipotesi
+
+Nuovo stimolo `signal` (`spiking_evo/stimuli/signal.py`): un'uscita d'azione generica; chi
+la attiva emette per quel passo (costo 0.01) e i membri vivi del gruppo lo sentono al passo
+dopo, per settore, entro 6 celle; nessuno sente sé stesso; `sense_gain: 0` = canale muto. Lo
+stimolo conta le emissioni separando i passi "nutriti" (energia guadagnata negli ultimi 10
+passi) da quelli "a digiuno": serve per misurare se il segnale porta informazione.
+
+Disegno 2×2, mondo di E0 con `others` acceso ovunque, 400 agenti per generazione, 300
+generazioni, 24 seed per condizione:
+
+| | segnale sentito | canale muto |
+|---|---|---|
+| gruppi di 10 cloni, fitness di gruppo (40 genomi) | `e1_clones` | `e1_clones_mute` |
+| individui non imparentati, gruppi rimescolati (400 genomi) | `e1_mixed` | `e1_mixed_mute` |
+
+Ipotesi fissate prima del lancio in `scripts/compare_e1.py`, misurate sulla popolazione
+finale su 10 episodi nuovi: H1 informatività (P(emette | nutrito) − P(emette | a digiuno))
+più alta in `e1_clones` che in `e1_clones_mute`; H2 in `e1_clones` la popolazione raccoglie
+meno se resa sorda al segnale; H3 informatività più alta in `e1_clones` che in `e1_mixed`.
+Atteso dalla letteratura: tra individui non imparentati e con selezione individuale emettere
+costa a chi emette e aiuta gli altri, quindi dovrebbe essere selezionato contro.
+
+**Pilota E1 sul notebook (16/11, 1 seed, 20 generazioni, solo calibrazione).** Tutte e 4 le
+condizioni girano; `compare_e1.py` funziona (controllo di coerenza: costo della sordità = 0
+nei muti). Tempi sul notebook circa 15 s per generazione con 4 run in parallelo. **Problema di
+calibrazione:** nei gruppi di cloni l'emissione sale al massimo entro la generazione 5 (circa
+980 emissioni su 1000 passi), sia con segnale sentito sia con canale muto, insieme
+all'attività delle reti (da 31 a circa 100 Hz); tra non imparentati sale fino a circa 300
+alla generazione 5 e poi scende a circa 90 (il costo la seleziona contro). Con
+`emit_cost: 0.05` (circa 47 di energia per episodio se si emette sempre) i cloni emettono
+ancora circa 940 volte su 1000. Un segnale sempre acceso non porta informazione: con questo
+disegno H1 può fallire per un effetto soglia. Da decidere con l'utente prima del lancio
+(le config restano con `emit_cost: 0.01`, come pre-registrato).
