@@ -763,3 +763,13 @@ Da incollare all'inizio di una sessione sul PC:
 ## D4 naturale (2026-11-15) — cure NON emergono, vengono eliminate
 
 Vedi `results/2026-11-15-eco-d4/README.md`. Con cure: 8/32 estinti, feed rate finale 13 contro 109 del controllo (H1 smentito, p=1.0); H2 e H3 non supportati. Nutrire costa e, senza parentela (kin_only false) e con popolazione sempre al tetto di 300, non rende: la selezione lo spegne. Prossimi passi possibili: kin_only true (dono solo ai propri figli, selezione di parentela), capacità più alta o mondo limitato dal cibo e non dai posti, piccoli che senza aiuto davvero non sopravvivono per scarsa capacità (cervello piccolo) e non per regola.
+
+## D5 (2026-11-16) — mondo autoregolato, cure né eliminate né selezionate
+
+Vedi `results/2026-11-16-eco-d5/README.md`. Lezioni di calibrazione (test brevi locali): i
+fondatori "foragers" si avvelenavano (uscita azione nuova cablata a caso) → fondatori evoluti
+300 generazioni nel mondo D5; con terreno senza limite la popolazione esplodeva → riposo del
+terreno (`fallow_time`); il cibo condiviso va scalato per la popolazione (500 → ~80 individui,
+7 ms/passo). Esito 16+16: H1–H3 non supportati (p ≈ 0.47–0.62), nessuna estinzione. Il gesto
+"nutri" deriva allo stesso modo con e senza effetto. Prossimo passo proposto: rendere il dono
+energeticamente rilevante (feed_amount più alto) e capire perché la mortalità giovanile è 70–90%.
