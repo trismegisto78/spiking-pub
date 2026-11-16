@@ -68,12 +68,12 @@ prendono solo in due), poi tutto nell'ecosistema D. E1: stimolo `signal` (uscita
 confronto pre-registrato tra gruppi di cloni (stesso genoma, selezione di gruppo) e individui
 non imparentati, più controllo con canale muto. 24 seed per condizione.
 
-Stato di E1 (16/11): pronto, non ancora lanciato. Stimolo `signal`, `genetics.clones` (+
-`world.group_shuffle`), config `e1_clones` (80 genomi × 5 cloni), `e1_clones_mute`,
-`e1_mixed`, `e1_mixed_mute` (gruppi da 5 ovunque, 400 agenti per generazione, 300
-generazioni), ipotesi H1 (principale: i cloni sordi al segnale raccolgono meno) – H4 in
-`scripts/compare_e1.py`. I piloti hanno mostrato un possibile segnale "faro" sempre acceso
-nei cloni. Dettagli in `STATO_LAVORI.md`, sezione E1 e decisione 13.
+Stato di E1 (16/11): fatto su RunPod (4 × 24 seed, circa 1.9 $), nessuna ipotesi
+supportata (H1 p = 0.08, H4 p = 0.08). Il segnale quasi sparisce; i compagni di gruppo
+stanno a distanza casuale e quasi mai a portata d'orecchio, e il cibo si trova anche da
+soli. Prossimo passo proposto: E1-bis con segnale udibile in tutta l'arena (o mondo più
+piccolo) e cibo raro. Risultati in `results/2026-11-16-e1/README.md`; dettagli in
+`STATO_LAVORI.md`, sezione E1 e decisione 13.
 
 Strumenti nuovi: `world.arenas: groups` (+ `group_size`, `group_shuffle`), stimoli `others`,
 `food_patch` e `signal`, `genetics.clones`, `scripts/eco_local.py` (ecosistemi in parallelo

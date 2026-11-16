@@ -928,3 +928,18 @@ H2 energia `e1_clones` > `e1_clones_mute`; H3 informatività `e1_clones` > `e1_c
 H4 informatività `e1_clones` > `e1_mixed`. Esplorativi: tasso di emissione e distanza media
 dai compagni di gruppo (nuova misura `others.track_distance`, attiva solo nell'analisi) per
 distinguere un faro che tiene unito il gruppo da un segnale emesso sul cibo.
+
+### E1 — risultati (2026-11-16)
+
+Vedi `results/2026-11-16-e1/README.md`. 4 × 24 seed su RunPod (circa 1 h 57 min, circa
+1.9 $). **Nessuna ipotesi supportata**: H1 (cloni sordi al segnale raccolgono meno) +1.38,
+p = 0.080; H2 (energia cloni > cloni muti) −0.41, p = 0.51; H3 (informatività cloni > muti)
+p = 0.12; H4 (informatività cloni > misti) p = 0.080. Esplorativo: il segnale quasi sparisce
+(emissione mediana 1–3% dei passi, anche nei muti); il "faro" del pilota non regge a 300
+generazioni; l'informatività alta compare anche nei muti, quindi è un effetto collaterale;
+i compagni di gruppo stanno a distanza casuale (15.3 celle, come punti a caso sul toro 40×40)
+e sono entro il raggio di ascolto solo circa il 7% del tempo. Lettura: il limite è la
+geometria e il valore dell'informazione (il cibo si trova anche da soli), non la parentela.
+Prossimo passo proposto, E1-bis: segnale udibile in tutta l'arena (o mondo più piccolo) e
+cibo raro, così che un'informazione serva e arrivi. Il seed 3 dei misti (sordità −36 di
+energia, emette l'81% del tempo) mostra che un uso forte del segnale è raggiungibile.

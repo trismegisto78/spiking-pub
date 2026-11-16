@@ -1,0 +1,107 @@
+e1_clones       runs 24  blind_cost +1.3783  energy_late +404.4820  informativeness +0.0568  emission_rate +0.1201  mate_distance +15.2834
+     1 blind_cost=-3.3881 energy_late=+392.5434 informativeness=+0.0468 emission_rate=+0.0285 mate_distance=+15.5399
+     2 blind_cost=+4.7499 energy_late=+420.9940 informativeness=+0.0100 emission_rate=+0.0067 mate_distance=+15.0508
+     3 blind_cost=-0.3852 energy_late=+404.5946 informativeness=+0.0081 emission_rate=+0.0315 mate_distance=+15.2359
+     4 blind_cost=-2.4417 energy_late=+315.1986 informativeness=-0.0002 emission_rate=+0.0093 mate_distance=+15.3964
+     5 blind_cost=-2.3006 energy_late=+414.9056 informativeness=+0.1262 emission_rate=+0.0402 mate_distance=+15.6244
+     6 blind_cost=+0.5058 energy_late=+444.7379 informativeness=+0.0022 emission_rate=+0.0029 mate_distance=+15.5608
+     7 blind_cost=+8.1583 energy_late=+335.8611 informativeness=+0.1499 emission_rate=+0.1169 mate_distance=+14.9442
+     8 blind_cost=+9.2912 energy_late=+386.6852 informativeness=+0.0066 emission_rate=+0.9562 mate_distance=+15.0462
+     9 blind_cost=+6.7662 energy_late=+434.0716 informativeness=-0.0009 emission_rate=+0.0177 mate_distance=+15.1964
+    10 blind_cost=+6.5261 energy_late=+374.5116 informativeness=+0.2822 emission_rate=+0.1702 mate_distance=+15.1677
+    11 blind_cost=+1.4302 energy_late=+351.1204 informativeness=+0.0075 emission_rate=+0.0025 mate_distance=+15.2610
+    12 blind_cost=+8.0845 energy_late=+435.0121 informativeness=+0.0024 emission_rate=+0.0010 mate_distance=+14.9113
+    13 blind_cost=-5.1799 energy_late=+419.6458 informativeness=+0.0030 emission_rate=+0.0009 mate_distance=+15.2382
+    14 blind_cost=+0.2625 energy_late=+424.4547 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.3646
+    15 blind_cost=+7.4349 energy_late=+435.2448 informativeness=+0.1747 emission_rate=+0.0756 mate_distance=+15.4885
+    16 blind_cost=-1.1686 energy_late=+405.4026 informativeness=+0.2037 emission_rate=+0.0745 mate_distance=+15.5014
+    17 blind_cost=-3.2885 energy_late=+344.8073 informativeness=+0.0025 emission_rate=+0.0026 mate_distance=+15.4007
+    18 blind_cost=+0.0000 energy_late=+454.0400 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.4488
+    19 blind_cost=-0.4837 energy_late=+433.7775 informativeness=-0.0020 emission_rate=+0.0024 mate_distance=+15.2886
+    20 blind_cost=+6.4869 energy_late=+468.4619 informativeness=-0.0028 emission_rate=+0.0047 mate_distance=+15.3813
+    21 blind_cost=-2.1792 energy_late=+317.9460 informativeness=+0.2889 emission_rate=+0.3025 mate_distance=+15.0753
+    22 blind_cost=+2.6652 energy_late=+433.2464 informativeness=+0.0007 emission_rate=+0.0069 mate_distance=+15.6260
+    23 blind_cost=-3.7946 energy_late=+491.3114 informativeness=+0.0572 emission_rate=+0.0390 mate_distance=+14.8944
+    24 blind_cost=-4.6719 energy_late=+368.9944 informativeness=-0.0047 emission_rate=+0.9893 mate_distance=+15.1581
+e1_clones_mute  runs 24  blind_cost +0.0000  energy_late +404.8891  informativeness +0.0241  emission_rate +0.1518  mate_distance +15.3254
+     1 blind_cost=+0.0000 energy_late=+469.3114 informativeness=+0.0036 emission_rate=+0.0023 mate_distance=+14.8830
+     2 blind_cost=+0.0000 energy_late=+412.5735 informativeness=+0.1574 emission_rate=+0.1028 mate_distance=+15.1969
+     3 blind_cost=+0.0000 energy_late=+385.2670 informativeness=-0.0010 emission_rate=+0.0022 mate_distance=+15.1763
+     4 blind_cost=+0.0000 energy_late=+436.1032 informativeness=-0.0002 emission_rate=+0.0002 mate_distance=+15.4610
+     5 blind_cost=+0.0000 energy_late=+347.1386 informativeness=+0.0328 emission_rate=+0.8119 mate_distance=+15.4544
+     6 blind_cost=+0.0000 energy_late=+453.2344 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.6057
+     7 blind_cost=+0.0000 energy_late=+293.4527 informativeness=-0.0350 emission_rate=+0.9335 mate_distance=+15.2783
+     8 blind_cost=+0.0000 energy_late=+304.4010 informativeness=+0.0126 emission_rate=+0.0042 mate_distance=+15.5602
+     9 blind_cost=+0.0000 energy_late=+404.3919 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.1619
+    10 blind_cost=+0.0000 energy_late=+408.2754 informativeness=+0.0644 emission_rate=+0.0355 mate_distance=+15.4024
+    11 blind_cost=+0.0000 energy_late=+337.1632 informativeness=-0.0050 emission_rate=+0.0393 mate_distance=+15.1275
+    12 blind_cost=+0.0000 energy_late=+423.9215 informativeness=+0.0325 emission_rate=+0.0383 mate_distance=+15.1839
+    13 blind_cost=+0.0000 energy_late=+447.0824 informativeness=+0.0572 emission_rate=+0.0190 mate_distance=+15.2343
+    14 blind_cost=+0.0000 energy_late=+431.1184 informativeness=+0.0176 emission_rate=+0.0238 mate_distance=+15.2933
+    15 blind_cost=+0.0000 energy_late=+416.4827 informativeness=+0.0870 emission_rate=+0.0442 mate_distance=+15.5042
+    16 blind_cost=+0.0000 energy_late=+427.7059 informativeness=-0.2491 emission_rate=+0.2034 mate_distance=+15.1284
+    17 blind_cost=+0.0000 energy_late=+444.0784 informativeness=-0.0062 emission_rate=+0.9932 mate_distance=+15.1754
+    18 blind_cost=+0.0000 energy_late=+411.9374 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.3539
+    19 blind_cost=+0.0000 energy_late=+459.7403 informativeness=-0.0003 emission_rate=+0.0008 mate_distance=+15.3263
+    20 blind_cost=+0.0000 energy_late=+436.0929 informativeness=+0.0218 emission_rate=+0.0062 mate_distance=+15.4210
+    21 blind_cost=+0.0000 energy_late=+320.6386 informativeness=+0.0021 emission_rate=+0.0008 mate_distance=+15.4551
+    22 blind_cost=+0.0000 energy_late=+408.7424 informativeness=-0.0625 emission_rate=+0.0820 mate_distance=+15.6937
+    23 blind_cost=+0.0000 energy_late=+392.7889 informativeness=+0.2792 emission_rate=+0.2098 mate_distance=+15.4742
+    24 blind_cost=+0.0000 energy_late=+445.6970 informativeness=+0.1702 emission_rate=+0.0895 mate_distance=+15.2583
+e1_mixed        runs 24  blind_cost +2.8207  energy_late +425.7141  informativeness +0.0228  emission_rate +0.0819  mate_distance +15.2293
+     1 blind_cost=-0.6065 energy_late=+429.9595 informativeness=+0.1388 emission_rate=+0.0521 mate_distance=+15.3086
+     2 blind_cost=-2.4908 energy_late=+443.4843 informativeness=-0.0032 emission_rate=+0.0054 mate_distance=+15.3035
+     3 blind_cost=+36.3676 energy_late=+429.8424 informativeness=-0.1644 emission_rate=+0.8134 mate_distance=+14.7892
+     4 blind_cost=+1.6464 energy_late=+426.8642 informativeness=+0.0041 emission_rate=+0.0169 mate_distance=+15.3040
+     5 blind_cost=+1.8999 energy_late=+446.1770 informativeness=-0.0001 emission_rate=+0.0007 mate_distance=+15.3358
+     6 blind_cost=+5.4894 energy_late=+413.0102 informativeness=+0.1246 emission_rate=+0.0697 mate_distance=+15.1614
+     7 blind_cost=-0.8449 energy_late=+445.9500 informativeness=+0.1264 emission_rate=+0.0464 mate_distance=+15.3064
+     8 blind_cost=+3.4769 energy_late=+376.7760 informativeness=+0.1789 emission_rate=+0.0953 mate_distance=+15.0513
+     9 blind_cost=+6.1028 energy_late=+423.9208 informativeness=+0.0461 emission_rate=+0.0180 mate_distance=+15.1884
+    10 blind_cost=-1.5673 energy_late=+410.6234 informativeness=+0.0282 emission_rate=+0.0252 mate_distance=+15.1426
+    11 blind_cost=-2.4845 energy_late=+434.0893 informativeness=+0.0095 emission_rate=+0.0903 mate_distance=+15.0942
+    12 blind_cost=-4.6517 energy_late=+398.0430 informativeness=-0.0049 emission_rate=+0.0064 mate_distance=+15.2583
+    13 blind_cost=+2.8083 energy_late=+425.3213 informativeness=+0.0018 emission_rate=+0.0008 mate_distance=+15.2403
+    14 blind_cost=+7.4509 energy_late=+399.0004 informativeness=+0.0011 emission_rate=+0.0051 mate_distance=+14.8153
+    15 blind_cost=+0.8944 energy_late=+426.6416 informativeness=+0.0103 emission_rate=+0.0164 mate_distance=+15.4693
+    16 blind_cost=+6.3225 energy_late=+432.4423 informativeness=+0.0016 emission_rate=+0.0199 mate_distance=+15.3090
+    17 blind_cost=+5.6776 energy_late=+441.0251 informativeness=+0.0089 emission_rate=+0.0033 mate_distance=+15.3025
+    18 blind_cost=+1.6957 energy_late=+414.1158 informativeness=-0.0071 emission_rate=+0.0093 mate_distance=+15.1570
+    19 blind_cost=-4.5894 energy_late=+395.3572 informativeness=+0.0409 emission_rate=+0.5907 mate_distance=+15.3277
+    20 blind_cost=-1.2935 energy_late=+445.6230 informativeness=+0.0049 emission_rate=+0.0203 mate_distance=+15.3201
+    21 blind_cost=+0.0787 energy_late=+449.9792 informativeness=+0.0006 emission_rate=+0.0063 mate_distance=+15.3510
+    22 blind_cost=+0.4299 energy_late=+435.1444 informativeness=+0.0030 emission_rate=+0.0035 mate_distance=+15.2847
+    23 blind_cost=+0.8320 energy_late=+438.9940 informativeness=-0.0018 emission_rate=+0.0514 mate_distance=+15.3804
+    24 blind_cost=+5.0514 energy_late=+434.7547 informativeness=+0.0000 emission_rate=+0.0001 mate_distance=+15.3013
+e1_mixed_mute   runs 24  blind_cost +0.0000  energy_late +424.3142  informativeness +0.0287  emission_rate +0.1575  mate_distance +15.2316
+     1 blind_cost=+0.0000 energy_late=+440.7773 informativeness=+0.1329 emission_rate=+0.0715 mate_distance=+15.5588
+     2 blind_cost=+0.0000 energy_late=+420.1399 informativeness=-0.0703 emission_rate=+0.3059 mate_distance=+15.2776
+     3 blind_cost=+0.0000 energy_late=+435.4183 informativeness=+0.0572 emission_rate=+0.0364 mate_distance=+14.7667
+     4 blind_cost=+0.0000 energy_late=+415.0873 informativeness=+0.0003 emission_rate=+0.0040 mate_distance=+15.3031
+     5 blind_cost=+0.0000 energy_late=+423.4338 informativeness=+0.0011 emission_rate=+0.0007 mate_distance=+15.3394
+     6 blind_cost=+0.0000 energy_late=+368.5929 informativeness=-0.0000 emission_rate=+0.0000 mate_distance=+14.9908
+     7 blind_cost=+0.0000 energy_late=+399.7457 informativeness=+0.0021 emission_rate=+0.0605 mate_distance=+15.2497
+     8 blind_cost=+0.0000 energy_late=+391.6411 informativeness=+0.0131 emission_rate=+0.8834 mate_distance=+15.4043
+     9 blind_cost=+0.0000 energy_late=+431.7640 informativeness=-0.0016 emission_rate=+0.0015 mate_distance=+15.2140
+    10 blind_cost=+0.0000 energy_late=+414.9723 informativeness=-0.0017 emission_rate=+0.0084 mate_distance=+15.3602
+    11 blind_cost=+0.0000 energy_late=+414.4661 informativeness=+0.0319 emission_rate=+0.0314 mate_distance=+15.1218
+    12 blind_cost=+0.0000 energy_late=+434.4654 informativeness=-0.0001 emission_rate=+0.0052 mate_distance=+15.2287
+    13 blind_cost=+0.0000 energy_late=+433.7453 informativeness=+0.0121 emission_rate=+0.0048 mate_distance=+15.1666
+    14 blind_cost=+0.0000 energy_late=+395.7455 informativeness=+0.0131 emission_rate=+0.0049 mate_distance=+15.2633
+    15 blind_cost=+0.0000 energy_late=+409.0152 informativeness=+0.2889 emission_rate=+0.1860 mate_distance=+15.3585
+    16 blind_cost=+0.0000 energy_late=+413.6414 informativeness=+0.0000 emission_rate=+0.0000 mate_distance=+15.1421
+    17 blind_cost=+0.0000 energy_late=+431.6334 informativeness=+0.0691 emission_rate=+0.0834 mate_distance=+15.3319
+    18 blind_cost=+0.0000 energy_late=+393.7295 informativeness=+0.0100 emission_rate=+0.0102 mate_distance=+15.0322
+    19 blind_cost=+0.0000 energy_late=+417.3747 informativeness=-0.0101 emission_rate=+0.9783 mate_distance=+15.4944
+    20 blind_cost=+0.0000 energy_late=+497.9771 informativeness=-0.0000 emission_rate=+0.0010 mate_distance=+14.9730
+    21 blind_cost=+0.0000 energy_late=+475.1216 informativeness=+0.0011 emission_rate=+0.0004 mate_distance=+15.3357
+    22 blind_cost=+0.0000 energy_late=+440.7592 informativeness=+0.0010 emission_rate=+0.0331 mate_distance=+15.2931
+    23 blind_cost=+0.0000 energy_late=+461.7724 informativeness=+0.1355 emission_rate=+0.0741 mate_distance=+15.1828
+    24 blind_cost=+0.0000 energy_late=+422.5226 informativeness=+0.0033 emission_rate=+0.9949 mate_distance=+15.1699
+
+=== Pre-registered tests (one-sided permutation, alpha 0.05)
+H1 (main) blind_cost in clones = +1.378, p = 0.0804
+H2 energy_late clones - clones_mute = -0.41, p = 0.5105
+H3 informativeness clones - clones_mute = +0.0326, p = 0.1201
+H4 informativeness clones - mixed = +0.0339, p = 0.0795
+(sanity) blind_cost in the mute conditions: clones_mute +0.0000, mixed_mute +0.0000 (expected 0)
