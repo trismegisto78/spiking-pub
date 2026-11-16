@@ -1,0 +1,55 @@
+e0_social   runs 24  energy_late  301.27  blind_cost   +2.36
+     1 energy_late= 320.62 blind_cost=  +0.47
+     2 energy_late= 238.74 blind_cost=  +6.88
+     3 energy_late= 313.50 blind_cost=  -2.93
+     4 energy_late= 291.03 blind_cost=  +7.60
+     5 energy_late= 301.79 blind_cost=  +3.34
+     6 energy_late= 268.25 blind_cost=  +0.37
+     7 energy_late= 318.13 blind_cost=  +2.37
+     8 energy_late= 232.77 blind_cost= +13.63
+     9 energy_late= 304.98 blind_cost=  +3.60
+    10 energy_late= 293.75 blind_cost=  -0.14
+    11 energy_late= 308.36 blind_cost=  -2.19
+    12 energy_late= 306.34 blind_cost=  +4.93
+    13 energy_late= 323.27 blind_cost=  -6.58
+    14 energy_late= 326.42 blind_cost=  -1.07
+    15 energy_late= 334.31 blind_cost=  +4.26
+    16 energy_late= 339.16 blind_cost=  +8.05
+    17 energy_late= 286.59 blind_cost=  +6.61
+    18 energy_late= 321.58 blind_cost=  +0.97
+    19 energy_late= 272.70 blind_cost=  +6.43
+    20 energy_late= 254.61 blind_cost=  +4.86
+    21 energy_late= 321.89 blind_cost=  -4.99
+    22 energy_late= 319.83 blind_cost=  +1.45
+    23 energy_late= 324.41 blind_cost=  +2.01
+    24 energy_late= 307.56 blind_cost=  -3.18
+e0_control  runs 24  energy_late  294.14  blind_cost   +0.00
+     1 energy_late= 312.33 blind_cost=  +0.00
+     2 energy_late= 317.55 blind_cost=  +0.00
+     3 energy_late= 293.18 blind_cost=  +0.00
+     4 energy_late= 287.69 blind_cost=  +0.00
+     5 energy_late= 301.21 blind_cost=  +0.00
+     6 energy_late= 289.95 blind_cost=  +0.00
+     7 energy_late= 319.88 blind_cost=  +0.00
+     8 energy_late= 280.40 blind_cost=  +0.00
+     9 energy_late= 320.73 blind_cost=  +0.00
+    10 energy_late= 223.36 blind_cost=  +0.00
+    11 energy_late= 302.73 blind_cost=  +0.00
+    12 energy_late= 268.25 blind_cost=  +0.00
+    13 energy_late= 311.38 blind_cost=  +0.00
+    14 energy_late= 317.38 blind_cost=  +0.00
+    15 energy_late= 281.73 blind_cost=  +0.00
+    16 energy_late= 330.75 blind_cost=  +0.00
+    17 energy_late= 281.47 blind_cost=  +0.00
+    18 energy_late= 323.04 blind_cost=  +0.00
+    19 energy_late= 235.19 blind_cost=  +0.00
+    20 energy_late= 208.12 blind_cost=  +0.00
+    21 energy_late= 325.91 blind_cost=  +0.00
+    22 energy_late= 300.92 blind_cost=  +0.00
+    23 energy_late= 318.80 blind_cost=  +0.00
+    24 energy_late= 307.27 blind_cost=  +0.00
+
+=== Pre-registered tests (one-sided permutation, alpha 0.05)
+H1 energy_late social - control = +7.14 (+2.4%), p = 0.2180
+H2 blind_cost in social = +2.36, p = 0.0100
+(sanity) blind_cost in control = +0.0000 (expected 0)

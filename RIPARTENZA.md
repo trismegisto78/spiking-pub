@@ -51,6 +51,7 @@ Pezzi chiave:
 | D4 "naturale" (32+32 mondi) | nutrire **viene eliminato** (costa, si nutre chiunque, popolazione sempre al tetto) |
 | D5 (16+16): dono solo ai figli, suolo che riposa, cibo 500, fondatori evoluti nel mondo D5 | mondo sano (popolazione 35–117, nessuna estinzione), ma **nessuna differenza** tra cure e controllo (p ≈ 0.47–0.62) |
 | D6 (16+16): come D5 ma dono da 10 | ancora **nessuna differenza** (H1–H3 p = 0.92/0.92/0.85); con cure si nutre semmai meno; mortalità giovanile circa 0.9 ovunque |
+| E0 (24+24): vedere gli altri (gruppi da 10, cibo a chiazze che si spostano) | gli agenti **usano** la presenza degli altri (sordi raccolgono meno, p = 0.01), che accelera l'evoluzione e aumenta la sopravvivenza, ma a fine run l'energia non è significativamente più alta (p = 0.22) |
 
 Diagnosi dopo D5 (`scripts/diagnose_juveniles.py`): i piccoli muoiono di **pericoli** (−16…−22
 energia, quanto tutta la loro dote) e di **fame**; l'aiuto dei genitori vale +0.06…+0.13. Il
@@ -60,10 +61,15 @@ simulazione lunga può dire se la selezione lo fa crescere.
 
 ## 4. Prossimo passo
 
-D6 fatto (vedi sopra e `results/2026-11-16-eco-d6/`): il dono più grande non basta. Da
-decidere con l'utente. Il dato più forte è che i piccoli muoiono quasi tutti (circa 90%)
-qualunque cosa facciano i genitori, quindi ha senso capire prima **perché** (pericoli? fame?
-cervello troppo piccolo?) con test brevi, e solo dopo cambiare il mondo.
+Percorso verso la comunicazione (deciso con l'utente il 16/11): E0 vedere gli altri (fatto) →
+**E1 primo segnale** → E2 più "parole" (cibo e pericolo) → E3 coordinazione (prede che si
+prendono solo in due), poi tutto nell'ecosistema D. E1: stimolo `signal` (uscita d'azione
+"emetti" a basso costo, percepita per settore dai membri del gruppo), mondo di E0;
+confronto pre-registrato tra gruppi di cloni (stesso genoma, selezione di gruppo) e individui
+non imparentati, più controllo con canale muto. 24 seed per condizione.
+
+Strumenti nuovi: `world.arenas: groups` (+ `group_size`), stimoli `others` e `food_patch`,
+`scripts/eco_local.py` (ecosistemi in parallelo sul notebook con tabella di stato).
 
 ## 5. Richieste aperte dell'utente
 

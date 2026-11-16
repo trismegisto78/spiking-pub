@@ -857,3 +857,13 @@ entro 6 celle; 200 generazioni, 24 seed per condizione. Ipotesi fissate prima de
 popolazione finale raccoglie meno se resa sorda agli altri. Pilota (1 seed, 30 generazioni,
 solo calibrazione): il mondo funziona (fitness da 15 a circa 200–240), circa 2.8 s per
 generazione con `others`, 1.7 s senza.
+
+### E0 — risultati (2026-11-16)
+
+Vedi `results/2026-11-16-e0/README.md`. 24+24 seed su RunPod (circa 23 min, circa 0.37 $).
+**H2 supportata** (p = 0.010): la popolazione sociale finale raccoglie meno se resa sorda agli
+altri (+2.4 di energia in media, 17 seed su 24). **H1 non supportata** (+2.4% di energia,
+p = 0.22). Esplorativo: il vantaggio sociale è netto nelle prime 50 generazioni (+15 di
+energia) e si riduce dopo; la sopravvivenza resta più alta per tutta la run (98% contro 94–95%).
+L'informazione sui vicini è un indizio involontario che porta con sé competizione; prossimo
+passo E1: un segnale emesso per scelta (`signal`), con gruppi di cloni contro non imparentati.
